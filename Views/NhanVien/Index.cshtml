@@ -1,0 +1,406 @@
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Nh\u00e2n vi\u00ean";
+    var sanPhams = ViewBag.SanPhams as List<SanPham> ?? new List<SanPham>();
+    var khachHangs = ViewBag.KhachHangs as List<KhachHang> ?? new List<KhachHang>();
+    var nhanViens = ViewBag.NhanViens as List<NhanVien> ?? new List<NhanVien>();
+    var donHangs = ViewBag.DonHangs as List<DonHang> ?? new List<DonHang>();
+    var sanPhamJson = JsonSerializer.Serialize(sanPhams.Select(s => new
+    {
+        s.Id,
+        s.Ma,
+        s.Ten,
+        s.GiaBan,
+        s.TonKho,
+        s.DonVi,
+        DanhMuc = s.DanhMuc?.Ten ?? "Kh\u00e1c"
+    }));
+}
+
+<style>
+    .staff-shell {
+        display: grid;
+        gap: 18px;
+    }
+
+    .staff-hero {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 0;
+        border-bottom: 1px solid #e8ecef;
+    }
+
+    .staff-hero h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+
+    .staff-hero p {
+        margin: 4px 0 0;
+        color: #65707a;
+    }
+
+    .staff-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, .8fr);
+        gap: 18px;
+    }
+
+    .staff-panel {
+        border: 1px solid #e1e5ea;
+        border-radius: 8px;
+        padding: 16px;
+        background: #fff;
+    }
+
+    .staff-panel h2 {
+        margin: 0 0 12px;
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    .product-list {
+        display: grid;
+        gap: 10px;
+        max-height: 460px;
+        overflow: auto;
+        padding-right: 4px;
+    }
+
+    .product-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid #e6ebef;
+        border-radius: 8px;
+    }
+
+    .product-row strong,
+    .cart-row strong {
+        display: block;
+    }
+
+    .muted {
+        color: #6c757d;
+        font-size: .9rem;
+    }
+
+    .cart-list {
+        display: grid;
+        gap: 10px;
+        min-height: 170px;
+    }
+
+    .cart-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 88px 32px;
+        gap: 8px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid #e6ebef;
+        border-radius: 8px;
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .stat-box {
+        padding: 12px;
+        border: 1px solid #e6ebef;
+        border-radius: 8px;
+        background: #f8fafb;
+    }
+
+    .stat-box span {
+        display: block;
+        color: #6c757d;
+        font-size: .85rem;
+    }
+
+    .stat-box strong {
+        font-size: 1.15rem;
+    }
+
+    .low-stock {
+        color: #b42318;
+        font-weight: 600;
+    }
+
+    @@media (max-width: 992px) {
+        .staff-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="staff-shell">
+    <div class="staff-hero">
+        <div>
+            <h1>M&#224;n h&#236;nh nh&#226;n vi&#234;n</h1>
+            <p>L&#7853;p h&#243;a &#273;&#417;n, tra c&#7913;u gi&#225;, theo d&#245;i t&#7891;n kho v&#224; l&#7883;ch s&#7917; giao d&#7883;ch t&#7841;i qu&#7847;y.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Index">V&#7873; trang ch&#7911;</a>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-box">
+            <span>S&#7843;n ph&#7849;m &#273;ang b&#225;n</span>
+            <strong>@sanPhams.Count</strong>
+        </div>
+        <div class="stat-box">
+            <span>Kh&#225;ch h&#224;ng th&#226;n thi&#7871;t</span>
+            <strong>@khachHangs.Count</strong>
+        </div>
+        <div class="stat-box">
+            <span>H&#243;a &#273;&#417;n g&#7847;n &#273;&#226;y</span>
+            <strong>@donHangs.Count</strong>
+        </div>
+    </div>
+
+    <div class="staff-grid">
+        <div class="staff-panel">
+            <h2>L&#7853;p h&#243;a &#273;&#417;n b&#225;n h&#224;ng</h2>
+            <div class="row g-2 mb-3">
+                <div class="col-md-5">
+                    <input id="scanInput" class="form-control" placeholder="Nh&#7853;p ho&#7863;c qu&#233;t m&#227; s&#7843;n ph&#7849;m" autocomplete="off" />
+                </div>
+                <div class="col-md-4">
+                    <select id="khachHangSelect" class="form-select">
+                        <option value="">Kh&#225;ch l&#7867;</option>
+                        @foreach (var khachHang in khachHangs)
+                        {
+                            <option value="@khachHang.Id">@khachHang.HoTen - @khachHang.DiemThuong &#273;i&#7875;m</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="nhanVienSelect" class="form-select">
+                        @foreach (var nhanVien in nhanViens)
+                        {
+                            <option value="@nhanVien.Id">@nhanVien.HoTen</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div id="cartList" class="cart-list mb-3">
+                <div class="text-muted">Ch&#432;a c&#243; s&#7843;n ph&#7849;m n&#224;o trong h&#243;a &#273;&#417;n.</div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                <div>
+                    <div class="muted">T&#7893;ng thanh to&#225;n</div>
+                    <strong id="totalAmount" class="fs-4">0 &#273;</strong>
+                </div>
+                <button id="checkoutButton" class="btn btn-primary" type="button">Thanh to&#225;n</button>
+            </div>
+        </div>
+
+        <div class="staff-panel">
+            <h2>Tra c&#7913;u s&#7843;n ph&#7849;m</h2>
+            <input id="searchInput" class="form-control mb-3" placeholder="T&#236;m theo m&#227; ho&#7863;c t&#234;n s&#7843;n ph&#7849;m" autocomplete="off" />
+            <div id="productList" class="product-list"></div>
+        </div>
+    </div>
+
+    <div class="staff-grid">
+        <div class="staff-panel">
+            <h2>T&#7891;n kho t&#7841;i qu&#7847;y</h2>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>M&#227;</th>
+                            <th>T&#234;n s&#7843;n ph&#7849;m</th>
+                            <th>Danh m&#7909;c</th>
+                            <th class="text-end">T&#7891;n kho</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sanPham in sanPhams)
+                        {
+                            <tr>
+                                <td>@sanPham.Ma</td>
+                                <td>@sanPham.Ten</td>
+                                <td>@(sanPham.DanhMuc?.Ten ?? "Kh\u00e1c")</td>
+                                <td class="text-end @(sanPham.TonKho <= sanPham.MucCanNhapLai ? "low-stock" : "")">@sanPham.TonKho</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="staff-panel">
+            <h2>L&#7883;ch s&#7917; giao d&#7883;ch</h2>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>M&#227; H&#272;</th>
+                            <th>Th&#7901;i gian</th>
+                            <th>Nh&#226;n vi&#234;n</th>
+                            <th class="text-end">T&#7893;ng ti&#7873;n</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var donHang in donHangs)
+                        {
+                            <tr>
+                                <td>#@donHang.Id</td>
+                                <td>@donHang.NgayDat.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@(donHang.NhanVien?.HoTen ?? "Ch\u01b0a r\u00f5")</td>
+                                <td class="text-end">@donHang.TongTien.ToString("N0") &#273;</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        const sanPhams = @Html.Raw(sanPhamJson);
+        const cart = new Map();
+        const productCache = new Map(sanPhams.map(item => [item.Id, item]));
+        const currency = new Intl.NumberFormat("vi-VN");
+        const productList = document.getElementById("productList");
+        const cartList = document.getElementById("cartList");
+        const totalAmount = document.getElementById("totalAmount");
+        const searchInput = document.getElementById("searchInput");
+        const scanInput = document.getElementById("scanInput");
+        let searchTimer;
+
+        function formatMoney(value) {
+            return `${currency.format(value)} \u0111`;
+        }
+
+        function addToCart(id) {
+            const product = productCache.get(id) || sanPhams.find(item => item.Id === id);
+            if (!product || product.TonKho <= 0) return;
+
+            const current = cart.get(id) || { ...product, SoLuong: 0 };
+            if (current.SoLuong >= product.TonKho) return;
+
+            current.SoLuong += 1;
+            cart.set(id, current);
+            renderCart();
+        }
+
+        function removeFromCart(id) {
+            cart.delete(id);
+            renderCart();
+        }
+
+        function updateQuantity(id, value) {
+            const item = cart.get(id);
+            if (!item) return;
+
+            const quantity = Math.max(1, Math.min(Number(value), item.TonKho));
+            item.SoLuong = quantity;
+            cart.set(id, item);
+            renderCart();
+        }
+
+        function renderProducts(products) {
+            if (products.length === 0) {
+                productList.innerHTML = '<div class="text-muted">Kh\u00f4ng t\u00ecm th\u1ea5y s\u1ea3n ph\u1ea9m ph\u00f9 h\u1ee3p.</div>';
+                return;
+            }
+
+            products.forEach(item => productCache.set(item.Id, item));
+            productList.innerHTML = products.map(item => `
+                <div class="product-row">
+                    <div>
+                        <strong>${item.Ten}</strong>
+                        <div class="muted">${item.Ma} - ${item.DanhMuc} - T\u1ed3n: ${item.TonKho} ${item.DonVi}</div>
+                        <div>${formatMoney(item.GiaBan)}</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" type="button" onclick="addToCart(${item.Id})">Th\u00eam</button>
+                </div>
+            `).join("");
+        }
+
+        async function searchProducts() {
+            const keyword = searchInput.value.trim();
+            if (keyword.length === 0) {
+                renderProducts(sanPhams);
+                return;
+            }
+
+            productList.innerHTML = '<div class="text-muted">\u0110ang t\u00ecm s\u1ea3n ph\u1ea9m...</div>';
+            const response = await fetch(`/NhanVien/TimSanPham?tuKhoa=${encodeURIComponent(keyword)}`);
+            const rawProducts = await response.json();
+            const products = rawProducts.map(item => ({
+                Id: item.Id ?? item.id,
+                Ma: item.Ma ?? item.ma,
+                Ten: item.Ten ?? item.ten,
+                GiaBan: item.GiaBan ?? item.giaBan,
+                TonKho: item.TonKho ?? item.tonKho,
+                DonVi: item.DonVi ?? item.donVi,
+                DanhMuc: item.DanhMuc ?? item.danhMuc
+            }));
+            renderProducts(products);
+        }
+
+        function renderCart() {
+            const items = Array.from(cart.values());
+            if (items.length === 0) {
+                cartList.innerHTML = '<div class="text-muted">Ch\u01b0a c\u00f3 s\u1ea3n ph\u1ea9m n\u00e0o trong h\u00f3a \u0111\u01a1n.</div>';
+                totalAmount.textContent = formatMoney(0);
+                return;
+            }
+
+            cartList.innerHTML = items.map(item => `
+                <div class="cart-row">
+                    <div>
+                        <strong>${item.Ten}</strong>
+                        <div class="muted">${item.Ma} - ${formatMoney(item.GiaBan)}</div>
+                    </div>
+                    <input class="form-control form-control-sm" type="number" min="1" max="${item.TonKho}" value="${item.SoLuong}" onchange="updateQuantity(${item.Id}, this.value)" />
+                    <button class="btn btn-sm btn-outline-danger" type="button" onclick="removeFromCart(${item.Id})">x</button>
+                </div>
+            `).join("");
+
+            const total = items.reduce((sum, item) => sum + item.GiaBan * item.SoLuong, 0);
+            totalAmount.textContent = formatMoney(total);
+        }
+
+        searchInput.addEventListener("input", () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(searchProducts, 250);
+        });
+
+        scanInput.addEventListener("keydown", event => {
+            if (event.key !== "Enter") return;
+
+            const code = scanInput.value.trim().toLowerCase();
+            const product = Array.from(productCache.values()).find(item => item.Ma.toLowerCase() === code);
+            if (product) addToCart(product.Id);
+            scanInput.value = "";
+        });
+
+        document.getElementById("checkoutButton").addEventListener("click", () => {
+            if (cart.size === 0) {
+                alert("Vui l\u00f2ng th\u00eam s\u1ea3n ph\u1ea9m v\u00e0o h\u00f3a \u0111\u01a1n.");
+                return;
+            }
+
+            alert("\u0110\u00e2y l\u00e0 giao di\u1ec7n frontend demo. Ch\u1ee9c n\u0103ng l\u01b0u h\u00f3a \u0111\u01a1n s\u1ebd n\u1ed1i v\u1edbi backend sau.");
+            cart.clear();
+            renderCart();
+        });
+
+        renderProducts(sanPhams);
+    </script>
+}

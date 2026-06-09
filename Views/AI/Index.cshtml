@@ -1,0 +1,130 @@
+@{
+    ViewData["Title"] = "AI";
+}
+
+<style>
+    .ai-shell {
+        display: grid;
+        gap: 16px;
+    }
+
+    .ai-header {
+        padding: 18px 0;
+        border-bottom: 1px solid #e8ecef;
+    }
+
+    .ai-header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+
+    .ai-header p {
+        margin: 4px 0 0;
+        color: #65707a;
+    }
+
+    .ai-panel {
+        border: 1px solid #e1e5ea;
+        border-radius: 8px;
+        padding: 16px;
+        background: #fff;
+    }
+
+    .ai-chat {
+        display: grid;
+        gap: 12px;
+        min-height: 260px;
+        max-height: 420px;
+        overflow: auto;
+        padding: 12px;
+        border: 1px solid #e6ebef;
+        border-radius: 8px;
+        background: #f8fafb;
+    }
+
+    .ai-message {
+        max-width: 82%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        white-space: pre-wrap;
+    }
+
+    .ai-message.user {
+        justify-self: end;
+        color: #fff;
+        background: #0d6efd;
+    }
+
+    .ai-message.bot {
+        justify-self: start;
+        color: #1f2933;
+        background: #fff;
+        border: 1px solid #e1e5ea;
+    }
+</style>
+
+<section class="ai-shell">
+    <div class="ai-header">
+        <h1>Tr&#7907; l&#253; AI MiniStop</h1>
+        <p>H&#7887;i AI v&#7873; s&#7843;n ph&#7849;m, t&#7891;n kho, giao d&#7883;ch g&#7847;n &#273;&#226;y v&#224; nghi&#7879;p v&#7909; t&#7841;i qu&#7847;y.</p>
+    </div>
+
+    <div class="ai-panel">
+        <div id="chatBox" class="ai-chat mb-3">
+            <div class="ai-message bot">Xin ch&#224;o, b&#7841;n c&#243; th&#7875; h&#7887;i: "S&#7843;n ph&#7849;m n&#224;o s&#7855;p h&#7871;t h&#224;ng?" ho&#7863;c "T&#243;m t&#7855;t giao d&#7883;ch g&#7847;n &#273;&#226;y".</div>
+        </div>
+
+        <div class="input-group">
+            <input id="questionInput" class="form-control" placeholder="Nh&#7853;p c&#226;u h&#7887;i cho AI" autocomplete="off" />
+            <button id="askButton" class="btn btn-primary" type="button">H&#7887;i AI</button>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        const chatBox = document.getElementById("chatBox");
+        const questionInput = document.getElementById("questionInput");
+        const askButton = document.getElementById("askButton");
+
+        function addMessage(text, type) {
+            const message = document.createElement("div");
+            message.className = `ai-message ${type}`;
+            message.textContent = text;
+            chatBox.appendChild(message);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return message;
+        }
+
+        async function askAI() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            addMessage(question, "user");
+            questionInput.value = "";
+            askButton.disabled = true;
+            const loading = addMessage("\u0110ang h\u1ecfi AI...", "bot");
+
+            try {
+                const response = await fetch("/AI/Hoi", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cauHoi: question })
+                });
+                const data = await response.json();
+                loading.textContent = data.traLoi || "AI kh\u00f4ng tr\u1ea3 v\u1ec1 n\u1ed9i dung.";
+            } catch (error) {
+                loading.textContent = "Kh\u00f4ng k\u1ebft n\u1ed1i \u0111\u01b0\u1ee3c AI. Vui l\u00f2ng th\u1eed l\u1ea1i.";
+            } finally {
+                askButton.disabled = false;
+                questionInput.focus();
+            }
+        }
+
+        askButton.addEventListener("click", askAI);
+        questionInput.addEventListener("keydown", event => {
+            if (event.key === "Enter") askAI();
+        });
+    </script>
+}

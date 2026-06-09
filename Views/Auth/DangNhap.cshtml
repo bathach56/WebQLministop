@@ -1,0 +1,55 @@
+@{
+    ViewData["Title"] = "Dang nhap";
+    var providers = ViewBag.Providers as string[] ?? Array.Empty<string>();
+    var loi = ViewBag.Loi as string;
+}
+
+<style>
+    .auth-panel {
+        max-width: 560px;
+        margin: 36px auto;
+        padding: 20px;
+        border: 1px solid #e1e5ea;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .auth-panel h1 {
+        margin-bottom: 8px;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .auth-actions {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    @@media (max-width: 576px) {
+        .auth-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="auth-panel">
+    <h1>&#272;&#259;ng nh&#7853;p OAuth 2.0</h1>
+    <p class="text-muted">Ch&#7885;n nh&#224; cung c&#7845;p &#273;&#7875; &#273;&#259;ng nh&#7853;p v&#224;o h&#7879; th&#7889;ng MiniStop.</p>
+
+    @if (!string.IsNullOrWhiteSpace(loi))
+    {
+        <div class="alert alert-danger" role="alert">
+            @loi
+        </div>
+    }
+
+    <div class="auth-actions">
+        @foreach (var provider in providers)
+        {
+            <a class="btn btn-outline-primary" asp-controller="Auth" asp-action="DangNhap" asp-route-provider="@provider">
+                @provider
+            </a>
+        }
+    </div>
+</section>

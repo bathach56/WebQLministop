@@ -1,132 +1,69 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - WebQLministop</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <script>
-        window.tailwind = window.tailwind || {};
-        window.tailwind.config = {
-            corePlugins: { preflight: false },
-            theme: {
-                extend: {
-                    colors: {
-                        ministop: {
-                            blue: "#2d5aa3",
-                            dark: "#1f437a",
-                            deep: "#173560",
-                            soft: "#eaf1fb",
-                            gold: "#f2c94c"
-                        }
-                    },
-                    boxShadow: {
-                        soft: "0 10px 26px rgba(23, 32, 51, 0.08)",
-                        glow: "0 18px 44px rgba(33, 70, 128, 0.12)"
-                    }
-                }
-            }
-        };
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/WebQLministop.styles.css" asp-append-version="true" />
 </head>
-<body class="min-h-screen bg-[#f4f7fb] text-slate-900">
-    <div class="min-h-screen lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside class="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:gap-8 bg-gradient-to-b from-[#2d5aa3] to-[#173560] p-5 text-white">
-            <a class="flex items-center gap-3 rounded-lg p-1 text-white no-underline hover:text-white" asp-area="" asp-controller="Home" asp-action="Index">
-                <span class="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-[#f2c94c] to-yellow-200 text-sm font-black text-[#1f437a] shadow-[0_12px_24px_rgba(242,201,76,.24)]">MS</span>
-                <span>
-                    <strong class="block text-lg leading-tight">MiniStop</strong>
-                    <small class="block text-xs text-white/70">Quản lý cửa hàng</small>
-                </span>
-            </a>
-
-            <nav class="grid gap-2" aria-label="Điều hướng chính">
-                <a class="group flex translate-x-1 items-center gap-3 rounded-lg bg-white/15 px-4 py-3 font-bold text-white no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" asp-area="" asp-controller="Home" asp-action="Index">
-                    <span class="h-2 w-2 rounded-full bg-[#f2c94c] shadow-[0_0_0_5px_rgba(242,201,76,.14)]"></span>
-                    Tổng quan
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Sản phẩm
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Đơn hàng
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Khách hàng
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Nhân viên
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Khuyến mãi
-                </a>
-            </nav>
-
-            <div class="mt-auto grid gap-1 rounded-lg border border-white/20 bg-white/10 p-4">
-                <span class="text-sm text-white/70">Ca hiện tại</span>
-                <strong>07:00 - 15:00</strong>
-                <small class="text-white/70">3 nhân viên đang trực</small>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">WebQLministop</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="NhanVien" asp-action="Index">Nhân viên</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="AI" asp-action="Index">AI</a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <span class="nav-link text-dark">Xin chào, @(User.Identity.Name ?? "người dùng")</span>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Auth" asp-action="DangXuat">Đăng xuất</a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Auth" asp-action="DangNhap">Đăng nhập</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
             </div>
-        </aside>
-
-        <div class="flex min-w-0 flex-col">
-            <header class="sticky top-0 z-20 grid gap-4 border-b border-slate-200/80 bg-white/85 px-4 py-4 backdrop-blur-xl lg:grid-cols-[minmax(220px,.8fr)_minmax(280px,1fr)_auto] lg:items-center lg:px-8">
-                <div class="pr-14 lg:pr-0">
-                    <p class="mb-1 text-xs font-black uppercase text-[#2d5aa3]">Hệ thống quản lý</p>
-                    <h1 class="m-0 text-2xl font-black tracking-normal text-slate-950">@(ViewData["PageHeading"] ?? ViewData["Title"] ?? "Tổng quan")</h1>
-                </div>
-
-                <label class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_26px_rgba(23,32,51,.08)]">
-                    <span class="text-xs font-black text-[#2d5aa3]">Tìm</span>
-                    <input class="min-w-0 flex-1 border-0 bg-transparent p-0 text-slate-800 outline-none focus:ring-0" type="search" placeholder="Tìm sản phẩm, đơn hàng..." />
-                </label>
-
-                <div class="flex flex-wrap items-center gap-3">
-                    <button class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-[0_10px_26px_rgba(23,32,51,.08)] transition hover:-translate-y-0.5 hover:bg-slate-50" type="button">Báo cáo</button>
-                    <button class="rounded-lg bg-gradient-to-br from-[#2d5aa3] to-[#1f437a] px-4 py-2 text-sm font-bold text-white shadow-[0_10px_22px_rgba(45,90,163,.24)] transition hover:-translate-y-0.5" type="button">Tạo đơn hàng</button>
-                    <span class="hidden h-10 w-10 items-center justify-center rounded-lg border border-[#2d5aa3]/15 bg-[#eaf1fb] font-black text-[#2d5aa3] sm:flex">QT</span>
-                </div>
-            </header>
-
-            <main role="main" class="flex-1 px-4 py-5 lg:px-8 lg:py-7">
-                @RenderBody()
-            </main>
-
-            <footer class="px-4 pb-6 text-sm text-slate-500 lg:px-8">
-                &copy; 2026 - WebQLministop
-            </footer>
-        </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
     </div>
 
-    <button class="fixed right-4 top-4 z-[1030] flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-[#2d5aa3] to-[#1f437a] font-black text-white shadow-[0_18px_44px_rgba(33,70,128,.12)] lg:hidden" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Mở menu">
-        ≡
-    </button>
-
-    <div class="offcanvas offcanvas-start bg-gradient-to-b from-[#2d5aa3] to-[#173560] text-white" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title font-black" id="mobileMenuLabel">MiniStop</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - WebQLministop - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
-        <div class="offcanvas-body">
-            <nav class="grid gap-2" aria-label="Điều hướng mobile">
-                <a class="rounded-lg bg-white/15 px-4 py-3 font-bold text-white no-underline" asp-area="" asp-controller="Home" asp-action="Index">Tổng quan</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Sản phẩm</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Đơn hàng</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Khách hàng</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Nhân viên</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Khuyến mãi</a>
-            </nav>
-        </div>
-    </div>
-
+    </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
