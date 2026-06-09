@@ -1,0 +1,39 @@
+Using launch settings from D:\Dowload\WebQLministop-main\WebQLministop-main\Properties\launchSettings.json...
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (9ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (62ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+      IF EXISTS
+          (SELECT *
+           FROM [sys].[objects] o
+           WHERE [o].[type] = 'U'
+           AND [o].[is_ms_shipped] = 0
+           AND NOT EXISTS (SELECT *
+               FROM [sys].[extended_properties] AS [ep]
+               WHERE [ep].[major_id] = [o].[object_id]
+                   AND [ep].[minor_id] = 0
+                   AND [ep].[class] = 1
+                   AND [ep].[name] = N'microsoft_database_tools_support'
+          )
+      )
+      SELECT 1 ELSE SELECT 0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT CASE
+          WHEN EXISTS (
+              SELECT 1
+              FROM [DanhMucs] AS [d]) THEN CAST(1 AS bit)
+          ELSE CAST(0 AS bit)
+      END
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://127.0.0.1:5088
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: D:\Dowload\WebQLministop-main\WebQLministop-main
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.

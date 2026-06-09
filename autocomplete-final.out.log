@@ -1,0 +1,83 @@
+Using launch settings from D:\Dowload\WebQLministop-main\WebQLministop-main\Properties\launchSettings.json...
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (8ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (85ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      
+      IF EXISTS
+          (SELECT *
+           FROM [sys].[objects] o
+           WHERE [o].[type] = 'U'
+           AND [o].[is_ms_shipped] = 0
+           AND NOT EXISTS (SELECT *
+               FROM [sys].[extended_properties] AS [ep]
+               WHERE [ep].[major_id] = [o].[object_id]
+                   AND [ep].[minor_id] = 0
+                   AND [ep].[class] = 1
+                   AND [ep].[name] = N'microsoft_database_tools_support'
+          )
+      )
+      SELECT 1 ELSE SELECT 0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (33ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT CASE
+          WHEN EXISTS (
+              SELECT 1
+              FROM [DanhMucs] AS [d]) THEN CAST(1 AS bit)
+          ELSE CAST(0 AS bit)
+      END
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://127.0.0.1:5088
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: D:\Dowload\WebQLministop-main\WebQLministop-main
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (83ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [s].[Id], [s].[DanhMucId], [s].[DonVi], [s].[GiaBan], [s].[GiaVon], [s].[KichHoat], [s].[Ma], [s].[MoTa], [s].[MucCanNhapLai], [s].[NhaCungCapId], [s].[Ten], [s].[TonKho], [d].[Id], [d].[MoTa], [d].[Ten]
+      FROM [SanPhams] AS [s]
+      INNER JOIN [DanhMucs] AS [d] ON [s].[DanhMucId] = [d].[Id]
+      WHERE [s].[KichHoat] = CAST(1 AS bit)
+      ORDER BY [s].[Ten]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (42ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [k].[Id], [k].[DiemThuong], [k].[DienThoai], [k].[Email], [k].[HoTen], [k].[KichHoat]
+      FROM [KhachHangs] AS [k]
+      WHERE [k].[KichHoat] = CAST(1 AS bit)
+      ORDER BY [k].[HoTen]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (6ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [n].[Id], [n].[ChucVu], [n].[DienThoai], [n].[Email], [n].[HoTen], [n].[KichHoat], [n].[Luong], [n].[NgayVaoLam]
+      FROM [NhanViens] AS [n]
+      WHERE [n].[KichHoat] = CAST(1 AS bit)
+      ORDER BY [n].[HoTen]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (12ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT [t].[Id], [t].[KhachHangId], [t].[NgayDat], [t].[NhanVienId], [t].[PhuongThucThanhToan], [t].[TongTien], [t].[TrangThai], [k].[Id], [k].[DiemThuong], [k].[DienThoai], [k].[Email], [k].[HoTen], [k].[KichHoat], [n].[Id], [n].[ChucVu], [n].[DienThoai], [n].[Email], [n].[HoTen], [n].[KichHoat], [n].[Luong], [n].[NgayVaoLam]
+      FROM (
+          SELECT TOP(@__p_0) [d].[Id], [d].[KhachHangId], [d].[NgayDat], [d].[NhanVienId], [d].[PhuongThucThanhToan], [d].[TongTien], [d].[TrangThai]
+          FROM [DonHangs] AS [d]
+          ORDER BY [d].[NgayDat] DESC
+      ) AS [t]
+      INNER JOIN [KhachHangs] AS [k] ON [t].[KhachHangId] = [k].[Id]
+      INNER JOIN [NhanViens] AS [n] ON [t].[NhanVienId] = [n].[Id]
+      ORDER BY [t].[NgayDat] DESC
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [s].[Id], [s].[DanhMucId], [s].[DonVi], [s].[GiaBan], [s].[GiaVon], [s].[KichHoat], [s].[Ma], [s].[MoTa], [s].[MucCanNhapLai], [s].[NhaCungCapId], [s].[Ten], [s].[TonKho], [d].[Id], [d].[MoTa], [d].[Ten]
+      FROM [SanPhams] AS [s]
+      INNER JOIN [DanhMucs] AS [d] ON [s].[DanhMucId] = [d].[Id]
+      WHERE [s].[KichHoat] = CAST(1 AS bit)
+      ORDER BY [s].[Ten]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [s].[Id], [s].[DanhMucId], [s].[DonVi], [s].[GiaBan], [s].[GiaVon], [s].[KichHoat], [s].[Ma], [s].[MoTa], [s].[MucCanNhapLai], [s].[NhaCungCapId], [s].[Ten], [s].[TonKho], [d].[Id], [d].[MoTa], [d].[Ten]
+      FROM [SanPhams] AS [s]
+      INNER JOIN [DanhMucs] AS [d] ON [s].[DanhMucId] = [d].[Id]
+      WHERE [s].[KichHoat] = CAST(1 AS bit)
+      ORDER BY [s].[Ten]
