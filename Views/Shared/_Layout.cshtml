@@ -1,28 +1,51 @@
+@{
+    int nhanVienKichHoat = ViewBag.NhanVienKichHoat ?? 0;
+}
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="scroll-smooth">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - WebQLministop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <script>
+        (function () {
+            const storedTheme = localStorage.getItem("ministop-theme");
+            const preferDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            if (storedTheme === "dark" || (!storedTheme && preferDark)) {
+                document.documentElement.classList.add("dark");
+            }
+        })();
+
         window.tailwind = window.tailwind || {};
         window.tailwind.config = {
+            darkMode: "class",
             corePlugins: { preflight: false },
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"]
+                    },
                     colors: {
                         ministop: {
-                            blue: "#2d5aa3",
-                            dark: "#1f437a",
-                            deep: "#173560",
-                            soft: "#eaf1fb",
-                            gold: "#f2c94c"
+                            navy: "#1E3A5F",
+                            blue: "#2563EB",
+                            sky: "#0EA5E9",
+                            gold: "#FFD95A",
+                            soft: "#EFF6FF"
                         }
                     },
                     boxShadow: {
-                        soft: "0 10px 26px rgba(23, 32, 51, 0.08)",
-                        glow: "0 18px 44px rgba(33, 70, 128, 0.12)"
+                        soft: "0 18px 48px rgba(15, 23, 42, 0.08)",
+                        lift: "0 22px 60px rgba(37, 99, 235, 0.16)",
+                        glow: "0 18px 46px rgba(14, 165, 233, 0.18)"
+                    },
+                    borderRadius: {
+                        "2xl": "1rem",
+                        "3xl": "1.5rem"
                     }
                 }
             }
@@ -32,104 +55,152 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/WebQLministop.styles.css" asp-append-version="true" />
 </head>
-<body class="min-h-screen bg-[#f4f7fb] text-slate-900">
-    <div class="min-h-screen lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside class="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:gap-8 bg-gradient-to-b from-[#2d5aa3] to-[#173560] p-5 text-white">
-            <a class="flex items-center gap-3 rounded-lg p-1 text-white no-underline hover:text-white" asp-area="" asp-controller="Home" asp-action="Index">
-                <span class="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-[#f2c94c] to-yellow-200 text-sm font-black text-[#1f437a] shadow-[0_12px_24px_rgba(242,201,76,.24)]">MS</span>
-                <span>
-                    <strong class="block text-lg leading-tight">MiniStop</strong>
-                    <small class="block text-xs text-white/70">Quản lý cửa hàng</small>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
+    <div id="managerShell" class="manager-shell min-h-screen lg:grid lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)]">
+        <aside id="managerSidebar" class="manager-sidebar fixed inset-y-0 left-0 z-40 flex w-[280px] -translate-x-full flex-col bg-gradient-to-b from-[#1E3A5F] via-[#172D4D] to-slate-950 p-5 text-white shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0">
+            <a class="mb-7 flex items-center gap-3 rounded-2xl p-1 text-white no-underline outline-none transition hover:text-white focus-visible:ring-4 focus-visible:ring-sky-300/30" asp-area="" asp-controller="Home" asp-action="Index">
+                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFD95A] text-sm font-black text-[#1E3A5F] shadow-[0_14px_34px_rgba(255,217,90,.25)]">MS</span>
+                <span class="min-w-0">
+                    <strong class="block text-lg leading-tight tracking-tight">MiniStop</strong>
+                    <small class="block truncate text-xs font-semibold text-sky-100/70">Quản lý cửa hàng</small>
                 </span>
             </a>
 
-            <nav class="grid gap-2" aria-label="Điều hướng chính">
-                <a class="group flex translate-x-1 items-center gap-3 rounded-lg bg-white/15 px-4 py-3 font-bold text-white no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" asp-area="" asp-controller="Home" asp-action="Index">
-                    <span class="h-2 w-2 rounded-full bg-[#f2c94c] shadow-[0_0_0_5px_rgba(242,201,76,.14)]"></span>
-                    Tổng quan
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Sản phẩm
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Đơn hàng
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Khách hàng
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Nhân viên
-                </a>
-                <a class="group flex items-center gap-3 rounded-lg px-4 py-3 font-bold text-white/80 no-underline transition hover:translate-x-1 hover:bg-white/15 hover:text-white" href="#">
-                    <span class="h-2 w-2 rounded-full bg-white/30 group-hover:bg-[#f2c94c]"></span>
-                    Khuyến mãi
-                </a>
+            <nav class="grid gap-2" aria-label="Điều hướng quản lý">
+                <a class="manager-nav-item is-active" href="#dashboard" data-page-link="dashboard"><span class="nav-dot"></span><span class="nav-icon">⌂</span><span class="nav-label">Tổng quan</span></a>
+                <a class="manager-nav-item" href="#products" data-page-link="products"><span class="nav-dot"></span><span class="nav-icon">□</span><span class="nav-label">Sản phẩm</span></a>
+                <a class="manager-nav-item" href="#orders" data-page-link="orders"><span class="nav-dot"></span><span class="nav-icon">◇</span><span class="nav-label">Đơn hàng</span></a>
+                <a class="manager-nav-item" href="#customers" data-page-link="customers"><span class="nav-dot"></span><span class="nav-icon">○</span><span class="nav-label">Khách hàng</span></a>
+                <a class="manager-nav-item" href="#staff" data-page-link="staff"><span class="nav-dot"></span><span class="nav-icon">◎</span><span class="nav-label">Nhân viên</span></a>
+                <a class="manager-nav-item" href="#promotions" data-page-link="promotions"><span class="nav-dot"></span><span class="nav-icon">✦</span><span class="nav-label">Khuyến mãi</span></a>
             </nav>
 
-            <div class="mt-auto grid gap-1 rounded-lg border border-white/20 bg-white/10 p-4">
-                <span class="text-sm text-white/70">Ca hiện tại</span>
-                <strong>07:00 - 15:00</strong>
-                <small class="text-white/70">3 nhân viên đang trực</small>
+            <div class="mt-auto rounded-2xl border border-white/15 bg-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.18)] backdrop-blur">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wide text-sky-100/70">Nhân sự</span>
+                    <span class="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(110,231,183,.14)]"></span>
+                </div>
+                <strong class="block text-lg">@nhanVienKichHoat nhân viên</strong>
+                <small class="text-sky-100/70">Đang hoạt động trong hệ thống</small>
             </div>
         </aside>
 
+        <div id="sidebarBackdrop" class="fixed inset-0 z-30 hidden bg-slate-950/50 backdrop-blur-sm lg:hidden"></div>
+
         <div class="flex min-w-0 flex-col">
-            <header class="sticky top-0 z-20 grid gap-4 border-b border-slate-200/80 bg-white/85 px-4 py-4 backdrop-blur-xl lg:grid-cols-[minmax(220px,.8fr)_minmax(280px,1fr)_auto] lg:items-center lg:px-8">
-                <div class="pr-14 lg:pr-0">
-                    <p class="mb-1 text-xs font-black uppercase text-[#2d5aa3]">Hệ thống quản lý</p>
-                    <h1 class="m-0 text-2xl font-black tracking-normal text-slate-950">@(ViewData["PageHeading"] ?? ViewData["Title"] ?? "Tổng quan")</h1>
-                </div>
+            <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/78 px-4 py-3 shadow-sm backdrop-blur-xl transition-colors duration-300 dark:border-slate-800/80 dark:bg-slate-950/78 lg:px-8">
+                <div class="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+                    <button class="manager-icon-btn lg:hidden" type="button" data-mobile-sidebar aria-label="Mở menu">
+                        <span class="text-xl leading-none">≡</span>
+                    </button>
+                    <button class="manager-icon-btn hidden lg:inline-flex" type="button" data-sidebar-collapse aria-label="Thu gọn sidebar">
+                        <span class="text-lg leading-none">‹</span>
+                    </button>
 
-                <label class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_26px_rgba(23,32,51,.08)]">
-                    <span class="text-xs font-black text-[#2d5aa3]">Tìm</span>
-                    <input class="min-w-0 flex-1 border-0 bg-transparent p-0 text-slate-800 outline-none focus:ring-0" type="search" placeholder="Tìm sản phẩm, đơn hàng..." />
-                </label>
+                    <div class="min-w-[190px] flex-1">
+                        <p class="mb-0.5 text-xs font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">MiniStop Manager</p>
+                        <h1 class="m-0 text-xl font-black tracking-tight text-slate-950 dark:text-white lg:text-2xl">@(ViewData["PageHeading"] ?? ViewData["Title"] ?? "Tổng quan cửa hàng")</h1>
+                    </div>
 
-                <div class="flex flex-wrap items-center gap-3">
-                    <button class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-[0_10px_26px_rgba(23,32,51,.08)] transition hover:-translate-y-0.5 hover:bg-slate-50" type="button">Báo cáo</button>
-                    <button class="rounded-lg bg-gradient-to-br from-[#2d5aa3] to-[#1f437a] px-4 py-2 text-sm font-bold text-white shadow-[0_10px_22px_rgba(45,90,163,.24)] transition hover:-translate-y-0.5" type="button">Tạo đơn hàng</button>
-                    <span class="hidden h-10 w-10 items-center justify-center rounded-lg border border-[#2d5aa3]/15 bg-[#eaf1fb] font-black text-[#2d5aa3] sm:flex">QT</span>
+                    <label class="manager-search order-last flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-900 dark:focus-within:border-sky-400 dark:focus-within:bg-slate-900 lg:order-none lg:max-w-xl">
+                        <span class="text-sky-600 dark:text-sky-300">⌕</span>
+                        <input class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-100" type="search" placeholder="Tìm sản phẩm, hóa đơn, nhân viên..." />
+                        <kbd class="hidden rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-400 dark:border-slate-700 dark:bg-slate-800 sm:inline">Ctrl K</kbd>
+                    </label>
+
+                    <button class="manager-icon-btn" type="button" data-theme-toggle aria-label="Đổi giao diện sáng tối">
+                        <span class="theme-light">☾</span>
+                        <span class="theme-dark hidden">☀</span>
+                    </button>
+
+                    <button class="manager-icon-btn relative" type="button" aria-label="Thông báo">
+                        <span>◔</span>
+                        <span class="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-white bg-rose-500 dark:border-slate-950"></span>
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-2 py-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-900" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-sky-500 text-sm font-black text-white">QL</span>
+                            <span class="hidden pr-2 md:block">
+                                <strong class="block text-sm leading-tight text-slate-900 dark:text-white">Quản lý</strong>
+                                <small class="text-xs text-slate-500 dark:text-slate-400">Cửa hàng MiniStop</small>
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end mt-2 rounded-2xl border-slate-200 p-2 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                            <li><a class="dropdown-item rounded-xl dark:text-slate-100" href="#">Hồ sơ</a></li>
+                            <li><a class="dropdown-item rounded-xl dark:text-slate-100" href="#">Cài đặt</a></li>
+                            <li><hr class="dropdown-divider dark:border-slate-800"></li>
+                            <li><a class="dropdown-item rounded-xl text-rose-600" href="#">Đăng xuất</a></li>
+                        </ul>
+                    </div>
                 </div>
             </header>
 
-            <main role="main" class="flex-1 px-4 py-5 lg:px-8 lg:py-7">
+            <main role="main" class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
                 @RenderBody()
             </main>
 
-            <footer class="px-4 pb-6 text-sm text-slate-500 lg:px-8">
-                &copy; 2026 - WebQLministop
+            <footer class="px-4 pb-7 text-sm text-slate-500 dark:text-slate-400 lg:px-8">
+                <span class="font-bold text-sky-700 dark:text-sky-300">MiniStop</span> © 2026 WebQLministop
             </footer>
-        </div>
-    </div>
-
-    <button class="fixed right-4 top-4 z-[1030] flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-[#2d5aa3] to-[#1f437a] font-black text-white shadow-[0_18px_44px_rgba(33,70,128,.12)] lg:hidden" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Mở menu">
-        ≡
-    </button>
-
-    <div class="offcanvas offcanvas-start bg-gradient-to-b from-[#2d5aa3] to-[#173560] text-white" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title font-black" id="mobileMenuLabel">MiniStop</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
-        </div>
-        <div class="offcanvas-body">
-            <nav class="grid gap-2" aria-label="Điều hướng mobile">
-                <a class="rounded-lg bg-white/15 px-4 py-3 font-bold text-white no-underline" asp-area="" asp-controller="Home" asp-action="Index">Tổng quan</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Sản phẩm</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Đơn hàng</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Khách hàng</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Nhân viên</a>
-                <a class="rounded-lg px-4 py-3 font-bold text-white/80 no-underline hover:bg-white/15 hover:text-white" href="#">Khuyến mãi</a>
-            </nav>
         </div>
     </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        (() => {
+            const root = document.documentElement;
+            const shell = document.getElementById("managerShell");
+            const sidebar = document.getElementById("managerSidebar");
+            const backdrop = document.getElementById("sidebarBackdrop");
+            const mobileBtn = document.querySelector("[data-mobile-sidebar]");
+            const collapseBtn = document.querySelector("[data-sidebar-collapse]");
+            const themeBtn = document.querySelector("[data-theme-toggle]");
+            const lightIcon = document.querySelector(".theme-light");
+            const darkIcon = document.querySelector(".theme-dark");
+
+            const syncThemeIcon = () => {
+                const isDark = root.classList.contains("dark");
+                lightIcon?.classList.toggle("hidden", isDark);
+                darkIcon?.classList.toggle("hidden", !isDark);
+            };
+
+            const closeMobileSidebar = () => {
+                sidebar?.classList.add("-translate-x-full");
+                backdrop?.classList.add("hidden");
+            };
+
+            syncThemeIcon();
+
+            themeBtn?.addEventListener("click", () => {
+                root.classList.toggle("dark");
+                localStorage.setItem("ministop-theme", root.classList.contains("dark") ? "dark" : "light");
+                syncThemeIcon();
+            });
+
+            mobileBtn?.addEventListener("click", () => {
+                sidebar?.classList.remove("-translate-x-full");
+                backdrop?.classList.remove("hidden");
+            });
+
+            collapseBtn?.addEventListener("click", () => {
+                shell?.classList.toggle("sidebar-collapsed");
+                collapseBtn.querySelector("span").textContent = shell?.classList.contains("sidebar-collapsed") ? "›" : "‹";
+            });
+
+            backdrop?.addEventListener("click", closeMobileSidebar);
+
+            document.addEventListener("click", (event) => {
+                const link = event.target.closest("[data-page-link]");
+                if (!link) return;
+                document.querySelectorAll("[data-page-link]").forEach(item => item.classList.remove("is-active"));
+                link.classList.add("is-active");
+                closeMobileSidebar();
+            });
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

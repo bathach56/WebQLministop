@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebQLministop")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+380a0e182e574daefb33ff393ec28ffa45435a8a")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebQLministop")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebQLministop")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
