@@ -108,6 +108,110 @@
     var maxChartTotal = chartDays.Any() ? chartDays.Max(d => d.Total) : 0m;
 }
 
+<style>
+    .claims-panel {
+        overflow: hidden;
+    }
+
+    .claims-staff-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .claims-staff-card {
+        border: 1px solid #dbe5f1;
+        border-radius: 16px;
+        padding: 18px;
+        background: #fff;
+        min-width: 0;
+    }
+
+    .claims-staff-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .claims-staff-head h3 {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .claims-permission-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+        gap: 10px 14px;
+    }
+
+    .claim-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: #172033;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.25;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .claim-option input {
+        flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: #0284c7;
+    }
+
+    .claim-option span {
+        display: block;
+    }
+
+    .claim-option:has(input:checked) {
+        border-color: #7dd3fc;
+        background: #e0f2fe;
+        color: #075985;
+    }
+
+    .claim-option:has(input:disabled) {
+        cursor: default;
+        opacity: .72;
+    }
+
+    .claims-note {
+        margin: 14px 0 0;
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .claims-save-btn {
+        margin-top: 16px;
+    }
+
+    @@media (max-width: 1200px) {
+        .claims-staff-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 720px) {
+        .claims-permission-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 <div class="manager-page-stack">
     @if (TempData["QuanLyMessage"] is string quanLyMessage)
     {
@@ -407,21 +511,21 @@
         <article class="manager-card overflow-hidden"><div class="table-wrap"><table class="manager-table"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Chức vụ / role</th><th>Lương</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>@foreach (var staff in nhanViens){<tr><td>NV-@staff.Id.ToString("0000")</td><td>@staff.HoTen</td><td>@(staff.DienThoai ?? "-")</td><td>@(staff.Email ?? "-")</td><td><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="CapNhatChucVuNhanVien" method="post" class="inline-form role-inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@staff.Id"><select name="chucVu"><option value="Nhan vien" selected="@(staff.ChucVu == "Nhan vien")">Nhân viên</option><option value="Thu ngan" selected="@(staff.ChucVu == "Thu ngan")">Thu ngân</option><option value="Pha che" selected="@(staff.ChucVu == "Pha che")">Pha chế</option><option value="Kho" selected="@(staff.ChucVu == "Kho")">Kho</option><option value="Quan ly" selected="@(staff.ChucVu == "Quan ly")">Quản lý</option></select><button class="btn-secondary" type="submit">Lưu role</button></form></td><td>@Money(staff.Luong)</td><td><span class="badge @(staff.KichHoat ? "success" : "danger")">@(staff.KichHoat ? "Đang hoạt động" : "Ngừng")</span></td><td><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="ToggleNhanVien" method="post" class="inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@staff.Id"><button class="btn-secondary" type="submit">@(staff.KichHoat ? "Ngừng" : "Kích hoạt")</button></form></td></tr>}</tbody></table></div>@if (!nhanViens.Any()){<div class="empty-state compact"><span>◎</span><h3>Chưa có nhân viên</h3><p>Thêm nhân viên để quản lý hồ sơ và phân quyền.</p></div>}</article>
         @if (CoQuyen("NhanVien.PhanQuyen"))
         {
-            <article class="manager-card">
-                <div class="card-head"><div><p class="eyebrow">Claims</p><h3>Phan quyen theo chuc nang</h3></div></div>
-                <div class="grid gap-4 md:grid-cols-2">
+            <article class="manager-card claims-panel">
+                <div class="card-head"><div><p class="eyebrow">Phân quyền</p><h3>Phân quyền theo chức năng</h3></div></div>
+                <div class="claims-staff-grid">
                     @foreach (var staff in nhanViens)
                     {
                         var quyenCuaNhanVien = nhanVienQuyens.TryGetValue(staff.Id, out var value) ? value : new HashSet<string>();
                         var laQuanLyNhanVien = staff.ChucVu == "Quan ly";
-                        <form asp-area="QuanLy" asp-controller="QuanLy" asp-action="CapNhatQuyenNhanVien" method="post" class="manager-card" style="box-shadow:none;">
+                        <form asp-area="QuanLy" asp-controller="QuanLy" asp-action="CapNhatQuyenNhanVien" method="post" class="claims-staff-card">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@staff.Id">
-                            <div class="card-head"><div><h3>@staff.HoTen</h3><p class="eyebrow">NV-@staff.Id.ToString("0000") - @HienThiChucVu(staff.ChucVu)</p></div></div>
-                            <div class="grid gap-2 md:grid-cols-2">
+                            <div class="claims-staff-head"><div><h3>@staff.HoTen</h3><p class="eyebrow">NV-@staff.Id.ToString("0000") - @HienThiChucVu(staff.ChucVu).ToUpper(culture)</p></div></div>
+                            <div class="claims-permission-grid">
                                 @foreach (var quyen in danhSachQuyen)
                                 {
-                                    <label class="inline-flex items-center gap-2 text-sm">
+                                    <label class="claim-option">
                                         <input type="checkbox" name="quyens" value="@quyen.Key" checked="@(laQuanLyNhanVien || quyenCuaNhanVien.Contains(quyen.Key))" disabled="@laQuanLyNhanVien">
                                         <span>@quyen.Value</span>
                                     </label>
@@ -429,11 +533,11 @@
                             </div>
                             @if (laQuanLyNhanVien)
                             {
-                                <p class="mt-3 text-sm text-slate-500">Quan ly mac dinh co toan quyen.</p>
+                                <p class="claims-note">Quản lý mặc định có toàn quyền.</p>
                             }
                             else
                             {
-                                <button class="btn-primary mt-3" type="submit">Luu quyen</button>
+                                <button class="btn-primary claims-save-btn" type="submit">Lưu quyền</button>
                             }
                         </form>
                     }

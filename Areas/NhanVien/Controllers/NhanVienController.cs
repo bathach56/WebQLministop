@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Text;
@@ -11,13 +13,33 @@ namespace WebQLministop.Areas.NhanVien.Controllers;
 [Area("NhanVien")]
 public class NhanVienController : Controller
 {
+    private static readonly string[] QuyenNhanVienHopLe =
+    [
+        "SanPham.Tao",
+        "DanhMuc.QuanLy",
+        "DonHang.QuanLy",
+        "KhuyenMai.Tao",
+        "HoaDon.Xem",
+        "NhanVien.PhanQuyen",
+        "BanHang.TaoDon",
+        "BanHang.TraCuuSanPham"
+    ];
+
     private readonly ApplicationDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public NhanVienController(ApplicationDbContext context, IConfiguration configuration)
+    public NhanVienController(ApplicationDbContext context, IConfiguration configuration, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _configuration = configuration;
+        _userManager = userManager;
+    }
+
+    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        await DongBoQuyenNhanVienDangNhap();
+        await next();
     }
 
     public async Task<IActionResult> Index()
@@ -441,6 +463,37 @@ public class NhanVienController : Controller
     private bool CoQuyenBatKy(params string[] quyens)
     {
         return quyens.Any(CoQuyen);
+    }
+
+    private async Task DongBoQuyenNhanVienDangNhap()
+    {
+        var nhanVienId = HttpContext.Session.GetInt32("NhanVienId");
+        if (nhanVienId == null)
+        {
+            return;
+        }
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.NhanVienId == nhanVienId.Value && u.LoaiTaiKhoan != "KhachHang");
+
+        if (user == null)
+        {
+            return;
+        }
+
+        var vaiTro = string.Equals(user.LoaiTaiKhoan, "QuanLy", StringComparison.OrdinalIgnoreCase)
+            ? "QuanLy"
+            : "NhanVien";
+
+        var claims = await _userManager.GetClaimsAsync(user);
+        var quyens = claims
+            .Where(c => c.Type == "Permission")
+            .Select(c => c.Value)
+            .Where(q => QuyenNhanVienHopLe.Contains(q, StringComparer.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        HttpContext.Session.SetString("VaiTro", vaiTro);
+        HttpContext.Session.SetString("QuyenNhanVien", string.Join(",", quyens));
     }
 
     [HttpGet]
