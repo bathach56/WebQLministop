@@ -19,6 +19,9 @@
         "ChuyenKhoan" => "QR SePAY",
         _ => string.IsNullOrWhiteSpace(phuongThuc) ? "Chưa cập nhật" : phuongThuc
     };
+
+    string TenSanPhamDonHang(ChiTietDonHang item) => !string.IsNullOrWhiteSpace(item.TenSanPham) ? item.TenSanPham! : item.SanPham?.Ten ?? "Sản phẩm không xác định";
+    string MaSanPhamDonHang(ChiTietDonHang item) => !string.IsNullOrWhiteSpace(item.MaSanPham) ? item.MaSanPham! : item.SanPham?.Ma ?? "-";
 }
 
 <div class="mx-auto mt-8 max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -117,8 +120,8 @@
                 {
                     <div class="grid gap-3 px-5 py-4 text-sm md:grid-cols-[1fr_auto_auto] md:items-center">
                         <div>
-                            <div class="font-bold text-slate-900">@item.SanPham?.Ten</div>
-                            <div class="mt-1 text-xs text-slate-500">@item.SanPham?.Ma</div>
+                            <div class="font-bold text-slate-900">@TenSanPhamDonHang(item)</div>
+                            <div class="mt-1 text-xs text-slate-500">@MaSanPhamDonHang(item)</div>
                         </div>
                         <div class="text-slate-500 md:text-right">@item.SoLuong x @item.DonGia.ToString("N0")đ</div>
                         <div class="font-bold text-slate-900 md:text-right">@((item.SoLuong * item.DonGia - item.TienGiam).ToString("N0"))đ</div>

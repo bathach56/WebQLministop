@@ -17,11 +17,13 @@ namespace WebQLministop.Areas.KhachHang.Controllers
         private const int ThoiGianChoThanhToanPhut = 5;
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<GioHangController> _logger;
 
-        public GioHangController(ApplicationDbContext context, IConfiguration configuration)
+        public GioHangController(ApplicationDbContext context, IConfiguration configuration, ILogger<GioHangController> logger)
         {
             _context = context;
             _configuration = configuration;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -62,7 +64,9 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                 return Json(new { thanhCong = false, canDangNhap = true, thongBao = "Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng." });
             }
 
-            var sanPham = await _context.SanPhams.FirstOrDefaultAsync(p => p.Id == sanPhamId && p.KichHoat);
+            var sanPham = await _context.SanPhams
+                .Include(p => p.DanhMuc)
+                .FirstOrDefaultAsync(p => p.Id == sanPhamId && p.KichHoat && (p.DanhMuc == null || p.DanhMuc.KichHoat));
             if (sanPham == null)
             {
                 return Json(new { thanhCong = false, thongBao = "Sản phẩm không tồn tại hoặc đã ngừng bán." });
@@ -271,6 +275,7 @@ namespace WebQLministop.Areas.KhachHang.Controllers
             var gioHang = await _context.GioHangs
                 .Include(g => g.ChiTiet)
                 .ThenInclude(c => c.SanPham)
+                .ThenInclude(p => p!.DanhMuc)
                 .FirstOrDefaultAsync(g => g.KhachHangId == khachHangId.Value);
 
             if (gioHang == null || !gioHang.ChiTiet.Any())
@@ -279,10 +284,18 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            await HuyDonSePayQuaHan(khachHangId.Value);
+            var donHangDangCho = await LayDonSePayDangCho(khachHangId.Value);
+            if (donHangDangCho != null)
+            {
+                TempData["ThongBaoGioHang"] = "Bạn đang có đơn hàng chờ quét mã thanh toán QR SePAY. Vui lòng hoàn tất hoặc hủy đơn cũ trước khi tạo đơn mới.";
+                return RedirectToAction(nameof(Index));
+            }
+
             // Bỏ đi đoạn gán nhân viên mặc định vì giờ Đơn Web sẽ dùng NhanVienId = null
             foreach (var item in gioHang.ChiTiet)
             {
-                if (item.SanPham == null || !item.SanPham.KichHoat)
+                if (item.SanPham == null || !item.SanPham.KichHoat || item.SanPham.DanhMuc?.KichHoat == false)
                 {
                     TempData["ThongBaoGioHang"] = "Giỏ hàng có sản phẩm không còn bán. Vui lòng kiểm tra lại.";
                     return RedirectToAction(nameof(Index));
@@ -332,6 +345,9 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                 ChiTiet = gioHang.ChiTiet.Select(item => new ChiTietDonHang
                 {
                     SanPhamId = item.SanPhamId,
+                    MaSanPham = item.SanPham?.Ma,
+                    TenSanPham = item.SanPham?.Ten,
+                    DonViSanPham = item.SanPham?.DonVi,
                     SoLuong = item.SoLuong,
                     DonGia = item.SanPham?.GiaBan ?? 0m,
                     TienGiam = Math.Round(item.SoLuong * (item.SanPham?.GiaBan ?? 0m) * phanTramGiam / 100m, 0)
@@ -409,16 +425,55 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                 return Json(new { thanhCong = false, trangThai = donHang.TrangThai, thongBao = "Đơn hàng đã quá hạn thanh toán và bị hủy." });
             }
 
-            var daNhanTien = await KiemTraGiaoDichSePay(donHang);
-            if (daNhanTien)
+            var ketQuaSePay = await KiemTraGiaoDichSePay(donHang);
+            if (ketQuaSePay.DaNhanTien)
             {
                 await XacNhanDonHangDaThanhToan(donHang, "SePAY xác nhận giao dịch khi khách bấm kiểm tra thanh toán.");
                 return Json(new { thanhCong = true, trangThai = donHang.TrangThai, thongBao = "Đã nhận được thanh toán. Đơn hàng đã chuyển sang trạng thái đã thanh toán." });
             }
 
+            if (!string.IsNullOrWhiteSpace(ketQuaSePay.Loi))
+            {
+                return Json(new { thanhCong = false, trangThai = donHang.TrangThai, thongBao = ketQuaSePay.Loi });
+            }
+
             var hetHanUtc = donHang.NgayDat.AddMinutes(ThoiGianChoThanhToanPhut);
             var conLaiGiay = Math.Max(0, (int)Math.Ceiling((hetHanUtc - DateTime.UtcNow).TotalSeconds));
             return Json(new { thanhCong = true, trangThai = donHang.TrangThai, conLaiGiay, thongBao = "Chưa nhận được thanh toán từ SePAY. Vui lòng thử lại sau vài giây." });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> HuyDonSePay(int donHangId)
+        {
+            var khachHangId = HttpContext.Session.GetInt32("KhachHangId");
+            if (khachHangId == null)
+            {
+                TempData["ThongBaoDangNhap"] = "Vui lòng đăng nhập để hủy đơn hàng.";
+                return RedirectToAction("Index", "DangNhap");
+            }
+
+            var donHang = await _context.DonHangs
+                .Include(d => d.KhachHang)
+                .Include(d => d.ChiTiet)
+                .ThenInclude(c => c.SanPham)
+                .FirstOrDefaultAsync(d => d.Id == donHangId && d.KhachHangId == khachHangId.Value);
+
+            if (donHang != null && donHang.TrangThai == "DangXuLy" && donHang.PhuongThucThanhToan == "ChuyenKhoan")
+            {
+                HuyDonHangChoThanhToan(donHang);
+                donHang.GhiChuThanhToan = donHang.GhiChuThanhToan?.Replace($"Đơn đã tự hủy vì quá {ThoiGianChoThanhToanPhut} phút chưa nhận được thanh toán SePAY.", "Khách hàng chủ động hủy đơn trong lúc chờ quét mã SePAY.");
+                await _context.SaveChangesAsync();
+                
+                if (donHang.KhachHang != null)
+                {
+                    HttpContext.Session.SetInt32("KhachHangDiemThuong", donHang.KhachHang.DiemThuong);
+                }
+                
+                TempData["ThongBaoGioHang"] = $"Đã hủy đơn hàng #{donHang.Id} thành công. Bạn có thể tạo đơn hàng mới.";
+            }
+
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpGet]
@@ -601,7 +656,9 @@ namespace WebQLministop.Areas.KhachHang.Controllers
         private string TaoSePayQrUrl(DonHang donHang)
         {
             var bank = _configuration["SePay:Bank"] ?? "BIDV";
-            var accountNumber = _configuration["SePay:AccountNumber"] ?? "";
+            var accountNumber = _configuration["SePay:VirtualAccountNumber"]
+                ?? _configuration["SePay:AccountNumber"]
+                ?? "";
             var accountHolder = _configuration["SePay:AccountHolder"] ?? "";
             var noiDung = TaoNoiDungChuyenKhoan(donHang.Id);
             return "https://qr.sepay.vn/img"
@@ -618,25 +675,59 @@ namespace WebQLministop.Areas.KhachHang.Controllers
             return $"DH{donHangId:000000}";
         }
 
-        private async Task<bool> KiemTraGiaoDichSePay(DonHang donHang)
+        private async Task<(bool DaNhanTien, string? Loi)> KiemTraGiaoDichSePay(DonHang donHang)
         {
             var apiToken = _configuration["SePay:ApiToken"];
-            if (string.IsNullOrWhiteSpace(apiToken)) return false;
+            if (string.IsNullOrWhiteSpace(apiToken))
+            {
+                return (false, "Chưa cấu hình SePAY API token nên không thể kiểm tra giao dịch.");
+            }
 
             try
             {
                 using var httpClient = new HttpClient();
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiToken);
-                var tuNgay = Uri.EscapeDataString(donHang.NgayDat.AddMinutes(-1).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
-                var denNgay = Uri.EscapeDataString(DateTime.UtcNow.AddMinutes(1).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
-                var url = $"https://my.sepay.vn/userapi/transactions/list?limit=20&amount_in={(long)donHang.TongTien}&transaction_date_min={tuNgay}&transaction_date_max={denNgay}";
-                var json = await httpClient.GetStringAsync(url);
+                var gioVietNam = LayMuiGioVietNam();
+                var tuNgay = TimeZoneInfo.ConvertTimeFromUtc(donHang.NgayDat.AddMinutes(-10), gioVietNam);
+                var denNgay = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow.AddMinutes(10), gioVietNam);
+                var url = "https://my.sepay.vn/userapi/transactions/list"
+                    + "?limit=100"
+                    + $"&transaction_date_min={Uri.EscapeDataString(tuNgay.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture))}"
+                    + $"&transaction_date_max={Uri.EscapeDataString(denNgay.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture))}";
+                var response = await httpClient.GetAsync(url);
+                var json = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("SePAY API tra ve loi HTTP {StatusCode}: {Body}", response.StatusCode, json);
+                    return (false, $"SePAY API trả về lỗi {(int)response.StatusCode}. Vui lòng kiểm tra API token hoặc cấu hình SePAY.");
+                }
+
                 using var document = JsonDocument.Parse(json);
-                return CoGiaoDichKhop(document.RootElement, TaoNoiDungChuyenKhoan(donHang.Id), donHang.TongTien);
+                return (CoGiaoDichKhop(document.RootElement, TaoNoiDungChuyenKhoan(donHang.Id), donHang.TongTien), null);
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                _logger.LogError(ex, "Khong the kiem tra giao dich SePAY cho don hang #{DonHangId}.", donHang.Id);
+                return (false, "Không gọi được SePAY API. Vui lòng kiểm tra kết nối, API token và cấu hình server.");
+            }
+        }
+
+        private static TimeZoneInfo LayMuiGioVietNam()
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                try
+                {
+                    return TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                    return TimeZoneInfo.Utc;
+                }
             }
         }
 
@@ -655,11 +746,11 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                     {
                         content = property.Value.GetString() ?? "";
                     }
-                    else if (name is "transferamount" or "transfer_amount" or "amount_in" or "amount")
+                    else if (name is "transferamount" or "transfer_amount" or "amount_in" or "amount" or "money")
                     {
                         amount = DocSoTien(property.Value);
                     }
-                    else if (name is "transfertype" or "transfer_type")
+                    else if (name is "transfertype" or "transfer_type" or "type")
                     {
                         transferType = property.Value.GetString() ?? "";
                     }
@@ -668,7 +759,7 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                 if (!string.IsNullOrWhiteSpace(content) &&
                     content.Contains(maDonHang, StringComparison.OrdinalIgnoreCase) &&
                     amount >= tongTien &&
-                    (string.IsNullOrWhiteSpace(transferType) || transferType.Equals("in", StringComparison.OrdinalIgnoreCase)))
+                    LaGiaoDichTienVao(transferType))
                 {
                     return true;
                 }
@@ -694,6 +785,14 @@ namespace WebQLministop.Areas.KhachHang.Controllers
             if (value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var number)) return number;
             if (value.ValueKind == JsonValueKind.String && decimal.TryParse(value.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var textNumber)) return textNumber;
             return 0m;
+        }
+
+        private static bool LaGiaoDichTienVao(string? transferType)
+        {
+            if (string.IsNullOrWhiteSpace(transferType)) return true;
+
+            var text = transferType.Trim().ToLowerInvariant();
+            return text is "in" or "income" or "credit" or "deposit" or "receive";
         }
 
         private static void ApDungTienGiamTuDiem(List<ChiTietDonHang> chiTiet, decimal tienGiamTuDiem)

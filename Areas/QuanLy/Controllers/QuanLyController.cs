@@ -13,6 +13,18 @@ namespace WebQLministop.Areas.QuanLy.Controllers;
 [Area("QuanLy")]
 public class QuanLyController : Controller
 {
+    private static readonly IReadOnlyDictionary<string, string> DanhSachQuyen = new Dictionary<string, string>
+    {
+        ["SanPham.Tao"] = "Tao/sua san pham",
+        ["DanhMuc.QuanLy"] = "Quan ly danh muc",
+        ["DonHang.QuanLy"] = "Quan ly don hang",
+        ["KhuyenMai.Tao"] = "Tao/bat tat voucher",
+        ["HoaDon.Xem"] = "Xem/in hoa don",
+        ["NhanVien.PhanQuyen"] = "Phan quyen nhan vien",
+        ["BanHang.TaoDon"] = "Tao hoa don tai quay",
+        ["BanHang.TraCuuSanPham"] = "Tra cuu san pham tai quay"
+    };
+
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
@@ -26,7 +38,7 @@ public class QuanLyController : Controller
 
     public async Task<IActionResult> Index()
     {
-        if (!LaQuanLy())
+        if (!CoQuyenBatKy())
         {
             return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
         }
@@ -50,12 +62,32 @@ public class QuanLyController : Controller
         var khachHangs = await _context.KhachHangs.Where(k => k.HoTen != "Khach le").OrderBy(k => k.HoTen).ToListAsync();
         var nhanViens = await _context.NhanViens.OrderBy(n => n.HoTen).ToListAsync();
         var khuyenMais = await _context.KhuyenMais.OrderByDescending(k => k.NgayBatDau).ToListAsync();
+        var nhanVienQuyens = new Dictionary<int, HashSet<string>>();
+        foreach (var nhanVien in nhanViens)
+        {
+            var user = await TimTaiKhoanNhanVien(nhanVien);
+            var claims = (user == null
+                ? QuyenMacDinh(nhanVien.ChucVu)
+                : (await _userManager.GetClaimsAsync(user))
+                    .Where(c => c.Type == "Permission")
+                    .Select(c => c.Value)
+                    .Where(LaQuyenHopLe))
+                .ToList();
+            if (claims.Count == 0)
+            {
+                claims = QuyenMacDinh(nhanVien.ChucVu).ToList();
+            }
+            nhanVienQuyens[nhanVien.Id] = claims.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
 
         ViewBag.SanPhams = sanPhams;
         ViewBag.DonHangs = donHangs;
         ViewBag.KhachHangs = khachHangs;
         ViewBag.NhanViens = nhanViens;
         ViewBag.KhuyenMais = khuyenMais;
+        ViewBag.DanhSachQuyen = DanhSachQuyen;
+        ViewBag.NhanVienQuyens = nhanVienQuyens;
+        ViewBag.QuyenHienTai = LayQuyenHienTai();
         ViewBag.DanhMucs = await _context.DanhMucs.OrderBy(d => d.Ten).ToListAsync();
         ViewBag.NhaCungCaps = await _context.NhaCungCaps.OrderBy(n => n.Ten).ToListAsync();
 
@@ -69,8 +101,7 @@ public class QuanLyController : Controller
         ViewBag.KhuyenMaiDaKetThuc = khuyenMais.Count(k => k.NgayKetThuc < DateTime.UtcNow);
         ViewBag.TopSanPhams = donHangs
             .SelectMany(d => d.ChiTiet)
-            .Where(c => c.SanPham != null)
-            .GroupBy(c => c.SanPham!.Ten)
+            .GroupBy(c => !string.IsNullOrWhiteSpace(c.TenSanPham) ? c.TenSanPham! : c.SanPham?.Ten ?? "San pham khong xac dinh")
             .Select(g => new { Ten = g.Key, SoLuong = g.Sum(c => c.SoLuong) })
             .OrderByDescending(x => x.SoLuong)
             .Take(5)
@@ -83,14 +114,14 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateSanPham(SanPham sanPham)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("SanPham.Tao")) return KhongCoQuyen();
 
         if (await _context.SanPhams.AnyAsync(p => p.Ma == sanPham.Ma))
         {
             ModelState.AddModelError(nameof(SanPham.Ma), "Mã sản phẩm đã tồn tại.");
         }
 
-        if (!await _context.DanhMucs.AnyAsync(d => d.Id == sanPham.DanhMucId))
+        if (!await _context.DanhMucs.AnyAsync(d => d.Id == sanPham.DanhMucId && d.KichHoat))
         {
             ModelState.AddModelError(nameof(SanPham.DanhMucId), "Vui lòng chọn danh mục hợp lệ.");
         }
@@ -117,7 +148,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleSanPham(int id)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("SanPham.Tao")) return KhongCoQuyen();
 
         var sanPham = await _context.SanPhams.FindAsync(id);
         if (sanPham == null)
@@ -136,7 +167,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateSanPham(SanPham sanPham)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("SanPham.Tao")) return KhongCoQuyen();
 
         var sanPhamHienTai = await _context.SanPhams.FindAsync(sanPham.Id);
         if (sanPhamHienTai == null)
@@ -150,7 +181,7 @@ public class QuanLyController : Controller
             ModelState.AddModelError(nameof(SanPham.Ma), "Mã sản phẩm đã tồn tại.");
         }
 
-        if (!await _context.DanhMucs.AnyAsync(d => d.Id == sanPham.DanhMucId) ||
+        if (!await _context.DanhMucs.AnyAsync(d => d.Id == sanPham.DanhMucId && d.KichHoat) ||
             !await _context.NhaCungCaps.AnyAsync(n => n.Id == sanPham.NhaCungCapId))
         {
             ModelState.AddModelError(string.Empty, "Danh mục hoặc nhà cung cấp không hợp lệ.");
@@ -184,7 +215,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateDanhMuc(DanhMuc danhMuc)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("DanhMuc.QuanLy")) return KhongCoQuyen();
 
         danhMuc.Ten = danhMuc.Ten?.Trim() ?? string.Empty;
         danhMuc.MoTa = danhMuc.MoTa?.Trim();
@@ -205,6 +236,7 @@ public class QuanLyController : Controller
             return RedirectToAction(nameof(Index), null, null, "categories");
         }
 
+        danhMuc.KichHoat = true;
         _context.DanhMucs.Add(danhMuc);
         await _context.SaveChangesAsync();
         ThongBao("Đã thêm danh mục mới.", "success");
@@ -215,7 +247,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateDanhMuc(DanhMuc danhMuc)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("DanhMuc.QuanLy")) return KhongCoQuyen();
 
         var danhMucHienTai = await _context.DanhMucs.FindAsync(danhMuc.Id);
         if (danhMucHienTai == null)
@@ -253,9 +285,33 @@ public class QuanLyController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleDanhMuc(int id)
+    {
+        if (!CoQuyen("DanhMuc.QuanLy")) return KhongCoQuyen();
+
+        var danhMuc = await _context.DanhMucs.FindAsync(id);
+        if (danhMuc == null)
+        {
+            ThongBao("Không tìm thấy danh mục cần cập nhật.", "danger");
+            return RedirectToAction(nameof(Index), null, null, "categories");
+        }
+
+        danhMuc.KichHoat = !danhMuc.KichHoat;
+        await _context.SaveChangesAsync();
+
+        ThongBao(
+            danhMuc.KichHoat
+                ? "Đã khôi phục danh mục."
+                : "Đã ẩn danh mục. Sản phẩm thuộc danh mục này sẽ không hiển thị ở trang khách và POS.",
+            "success");
+        return RedirectToAction(nameof(Index), null, null, "categories");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> CapNhatTrangThaiDonHang(int id, string trangThai)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("DonHang.QuanLy")) return KhongCoQuyen();
 
         var trangThaiHopLe = new[] { "ChoXuLy", "DangXuLy", "DaThanhToan", "ThanhCong", "DaHuy" };
         if (!trangThaiHopLe.Contains(trangThai))
@@ -281,7 +337,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateNhanVien(NhanVienModel nhanVien, string? matKhau)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("NhanVien.PhanQuyen")) return KhongCoQuyen();
 
         if (!string.IsNullOrWhiteSpace(nhanVien.Email) && await _context.NhanViens.AnyAsync(n => n.Email == nhanVien.Email))
         {
@@ -313,7 +369,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleNhanVien(int id)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("NhanVien.PhanQuyen")) return KhongCoQuyen();
 
         var nhanVien = await _context.NhanViens.FindAsync(id);
         if (nhanVien == null)
@@ -332,7 +388,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CapNhatChucVuNhanVien(int id, string chucVu)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("NhanVien.PhanQuyen")) return KhongCoQuyen();
 
         chucVu = chucVu?.Trim() ?? string.Empty;
         var chucVuHopLe = new[] { "Quan ly", "Nhan vien", "Thu ngan", "Pha che", "Kho" };
@@ -361,7 +417,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateNhanVien(NhanVienModel nhanVien, string? matKhau)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("NhanVien.PhanQuyen")) return KhongCoQuyen();
 
         var nhanVienHienTai = await _context.NhanViens.FindAsync(nhanVien.Id);
         if (nhanVienHienTai == null)
@@ -399,7 +455,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateNhaCungCap(NhaCungCap nhaCungCap)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("SanPham.Tao")) return KhongCoQuyen();
 
         if (!ModelState.IsValid)
         {
@@ -417,7 +473,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateNhaCungCap(NhaCungCap nhaCungCap)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("SanPham.Tao")) return KhongCoQuyen();
 
         var nhaCungCapHienTai = await _context.NhaCungCaps.FindAsync(nhaCungCap.Id);
         if (nhaCungCapHienTai == null)
@@ -447,7 +503,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateKhuyenMai(KhuyenMai khuyenMai)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("KhuyenMai.Tao")) return KhongCoQuyen();
 
         if (!string.IsNullOrWhiteSpace(khuyenMai.Ma) && await _context.KhuyenMais.AnyAsync(k => k.Ma == khuyenMai.Ma))
         {
@@ -476,7 +532,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleKhuyenMai(int id)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("KhuyenMai.Tao")) return KhongCoQuyen();
 
         var khuyenMai = await _context.KhuyenMais.FindAsync(id);
         if (khuyenMai == null)
@@ -495,7 +551,7 @@ public class QuanLyController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateKhuyenMai(KhuyenMai khuyenMai)
     {
-        if (!LaQuanLy()) return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
+        if (!CoQuyen("KhuyenMai.Tao")) return KhongCoQuyen();
 
         var khuyenMaiHienTai = await _context.KhuyenMais.FindAsync(khuyenMai.Id);
         if (khuyenMaiHienTai == null)
@@ -531,6 +587,47 @@ public class QuanLyController : Controller
         await _context.SaveChangesAsync();
         ThongBao("Đã cập nhật khuyến mãi.", "success");
         return RedirectToAction(nameof(Index), null, null, "promotions");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CapNhatQuyenNhanVien(int id, string[] quyens)
+    {
+        if (!CoQuyen("NhanVien.PhanQuyen")) return KhongCoQuyen();
+
+        var nhanVien = await _context.NhanViens.FindAsync(id);
+        if (nhanVien == null)
+        {
+            ThongBao("Khong tim thay nhan vien can phan quyen.", "danger");
+            return RedirectToAction(nameof(Index), null, null, "staff");
+        }
+
+        var user = await TimTaiKhoanNhanVien(nhanVien);
+        if (user == null)
+        {
+            await TaoHoacCapNhatTaiKhoanNhanVien(nhanVien, null);
+            user = await TimTaiKhoanNhanVien(nhanVien);
+        }
+
+        if (user == null)
+        {
+            ThongBao("Chua tao duoc tai khoan dang nhap cho nhan vien nay.", "danger");
+            return RedirectToAction(nameof(Index), null, null, "staff");
+        }
+
+        var quyensHopLe = quyens
+            .Where(LaQuyenHopLe)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (LaQuanLy(nhanVien.ChucVu))
+        {
+            quyensHopLe = DanhSachQuyen.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        await CapNhatPermissionClaims(user, quyensHopLe);
+        ThongBao("Da cap nhat quyen cho nhan vien.", "success");
+        return RedirectToAction(nameof(Index), null, null, "staff");
     }
 
     private async Task<bool> TaoHoacCapNhatTaiKhoanNhanVien(NhanVienModel nhanVien, string? matKhau)
@@ -603,15 +700,19 @@ public class QuanLyController : Controller
             await _userManager.AddToRoleAsync(user, vaiTro);
         }
 
-        var claimValue = vaiTro == "QuanLy" ? "QuanLy" : ChuanHoaClaimNhanVien(nhanVien.ChucVu);
         var claims = await _userManager.GetClaimsAsync(user);
-        foreach (var claim in claims.Where(c => c.Type == "ChucVu" || c.Type == "Permission").ToList())
+        foreach (var claim in claims.Where(c => c.Type == "ChucVu").ToList())
         {
             await _userManager.RemoveClaimAsync(user, claim);
         }
 
+        var claimValue = vaiTro == "QuanLy" ? "QuanLy" : ChuanHoaClaimNhanVien(nhanVien.ChucVu);
         await _userManager.AddClaimAsync(user, new Claim("ChucVu", claimValue));
-        await _userManager.AddClaimAsync(user, new Claim("Permission", vaiTro == "QuanLy" ? "QuanLy.HeThong" : "NhanVien.BanHang"));
+        var permissionClaims = claims.Where(c => c.Type == "Permission").Select(c => c.Value).Where(LaQuyenHopLe).ToArray();
+        if (vaiTro == "QuanLy" || permissionClaims.Length == 0)
+        {
+            await CapNhatPermissionClaims(user, QuyenMacDinh(nhanVien.ChucVu));
+        }
 
         nhanVien.MatKhauHash = user.PasswordHash;
         await _context.SaveChangesAsync();
@@ -624,8 +725,8 @@ public class QuanLyController : Controller
         if (role == null) return;
 
         var canCoClaims = vaiTro == "QuanLy"
-            ? new[] { "QuanLy.HeThong", "QuanLy.SanPham", "QuanLy.DonHang", "QuanLy.KhachHang", "QuanLy.NhanVien", "QuanLy.DanhMuc" }
-            : new[] { "NhanVien.BanHang", "NhanVien.TraCuuSanPham", "NhanVien.TaoHoaDon" };
+            ? DanhSachQuyen.Keys
+            : new[] { "BanHang.TaoDon", "BanHang.TraCuuSanPham", "HoaDon.Xem" };
 
         var claims = await _roleManager.GetClaimsAsync(role);
         foreach (var claimValue in canCoClaims)
@@ -646,6 +747,45 @@ public class QuanLyController : Controller
         return "NhanVien";
     }
 
+    private async Task<ApplicationUser?> TimTaiKhoanNhanVien(NhanVienModel nhanVien)
+    {
+        return await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.LoaiTaiKhoan != "KhachHang" &&
+            (u.NhanVienId == nhanVien.Id ||
+             (!string.IsNullOrWhiteSpace(nhanVien.Email) && u.Email == nhanVien.Email) ||
+             (!string.IsNullOrWhiteSpace(nhanVien.DienThoai) && u.PhoneNumber == nhanVien.DienThoai)));
+    }
+
+    private async Task CapNhatPermissionClaims(ApplicationUser user, IEnumerable<string> quyens)
+    {
+        var claims = await _userManager.GetClaimsAsync(user);
+        foreach (var claim in claims.Where(c => c.Type == "Permission").ToList())
+        {
+            await _userManager.RemoveClaimAsync(user, claim);
+        }
+
+        foreach (var quyen in quyens.Where(LaQuyenHopLe).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            await _userManager.AddClaimAsync(user, new Claim("Permission", quyen));
+        }
+    }
+
+    private static HashSet<string> QuyenMacDinh(string? chucVu)
+    {
+        if (LaQuanLy(chucVu))
+        {
+            return DanhSachQuyen.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return new[] { "BanHang.TaoDon", "BanHang.TraCuuSanPham", "HoaDon.Xem" }
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool LaQuyenHopLe(string quyen)
+    {
+        return DanhSachQuyen.ContainsKey(quyen);
+    }
+
     private static bool LaQuanLy(string? chucVu)
     {
         var text = (chucVu ?? string.Empty).Trim().ToLowerInvariant();
@@ -663,5 +803,47 @@ public class QuanLyController : Controller
     private bool LaQuanLy()
     {
         return HttpContext.Session.GetString("VaiTro") == "QuanLy";
+    }
+
+    private bool CoQuyen(string quyen)
+    {
+        if (LaQuanLy())
+        {
+            return true;
+        }
+
+        var quyens = HttpContext.Session.GetString("QuyenNhanVien");
+        return !string.IsNullOrWhiteSpace(quyens) &&
+            quyens.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Contains(quyen, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool CoQuyenBatKy()
+    {
+        return LaQuanLy() || LayQuyenHienTai().Any();
+    }
+
+    private HashSet<string> LayQuyenHienTai()
+    {
+        if (LaQuanLy())
+        {
+            return DanhSachQuyen.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var quyens = HttpContext.Session.GetString("QuyenNhanVien");
+        if (string.IsNullOrWhiteSpace(quyens))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return quyens.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(LaQuyenHopLe)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IActionResult KhongCoQuyen()
+    {
+        ThongBao("Ban khong co quyen thuc hien thao tac nay.", "danger");
+        return RedirectToAction(nameof(Index));
     }
 }

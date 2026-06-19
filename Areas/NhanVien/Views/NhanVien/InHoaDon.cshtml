@@ -7,6 +7,7 @@
     var diemSuDung = Model.DiemThuongSuDung;
     var tongPhaiThanhToan = tongTienGoc - khuyenMai - diemSuDung;
     var isSePay = Model.PhuongThucThanhToan == "ChuyenKhoan";
+    string TenSanPhamDonHang(ChiTietDonHang item) => !string.IsNullOrWhiteSpace(item.TenSanPham) ? item.TenSanPham! : item.SanPham?.Ten ?? "Sản phẩm không xác định";
 }
 
 <!DOCTYPE html>
@@ -180,7 +181,7 @@
                 {
                     <tr>
                         <td class="col-qty">@item.SoLuong</td>
-                        <td class="col-name">@item.SanPham?.Ten</td>
+                        <td class="col-name">@TenSanPhamDonHang(item)</td>
                         <td class="col-price">@((item.SoLuong * item.DonGia).ToString("N0"))</td>
                     </tr>
                 }

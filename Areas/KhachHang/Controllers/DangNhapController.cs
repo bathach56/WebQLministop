@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using System.Security.Claims;
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +16,8 @@ namespace WebQLministop.Areas.KhachHang.Controllers
     [Area("KhachHang")]
     public class DangNhapController : Controller
     {
+        private const string SessionNhanVienLoginToken = "NhanVienLoginToken";
+        private static readonly ConcurrentDictionary<string, PhienDangNhapNhanVien> PhienNhanVienDangNhap = new();
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -66,6 +69,12 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                 if (!ketQuaNhanVien.Succeeded)
                 {
                     ModelState.AddModelError(string.Empty, "Tài khoản hoặc mật khẩu không đúng.");
+                    return View();
+                }
+
+                if (TaiKhoanNhanVienDangDuocSuDung(userNhanVien))
+                {
+                    ModelState.AddModelError(string.Empty, "Tai khoan nhan vien/quan ly nay dang duoc su dung o noi khac. Vui long dang xuat phien cu truoc khi dang nhap.");
                     return View();
                 }
 
@@ -314,6 +323,7 @@ namespace WebQLministop.Areas.KhachHang.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DangXuat()
         {
+            GiaiPhongPhienNhanVien();
             await _signInManager.SignOutAsync();
             XoaSessionDangNhap();
             return RedirectToAction("Index", "Home", new { area = "KhachHang" });
@@ -406,15 +416,30 @@ namespace WebQLministop.Areas.KhachHang.Controllers
         {
             XoaSessionDangNhap();
 
+            var loginToken = Guid.NewGuid().ToString("N");
+            PhienNhanVienDangNhap[user.Id] = new PhienDangNhapNhanVien(loginToken, DateTime.UtcNow.AddMinutes(60));
+
             HttpContext.Session.SetInt32("NhanVienId", nhanVien.Id);
             HttpContext.Session.SetString("NhanVienHoTen", nhanVien.HoTen);
             HttpContext.Session.SetString("VaiTro", ChuanHoaVaiTro(user.LoaiTaiKhoan));
+            HttpContext.Session.SetString(SessionNhanVienLoginToken, loginToken);
 
             var quyen = (await _userManager.GetClaimsAsync(user))
                 .Where(c => c.Type == "Permission")
                 .Select(c => c.Value)
                 .Where(LaQuyenNhanVienHopLe)
-                .Distinct();
+                .Distinct()
+                .ToList();
+
+            if (quyen.Count == 0)
+            {
+                quyen = QuyenMacDinh(ChuanHoaVaiTro(user.LoaiTaiKhoan)).ToList();
+                foreach (var item in quyen)
+                {
+                    await _userManager.AddClaimAsync(user, new Claim("Permission", item));
+                }
+            }
+
             HttpContext.Session.SetString("QuyenNhanVien", string.Join(",", quyen));
         }
 
@@ -428,6 +453,44 @@ namespace WebQLministop.Areas.KhachHang.Controllers
             HttpContext.Session.Remove("NhanVienHoTen");
             HttpContext.Session.Remove("VaiTro");
             HttpContext.Session.Remove("QuyenNhanVien");
+            HttpContext.Session.Remove(SessionNhanVienLoginToken);
+        }
+
+        private bool TaiKhoanNhanVienDangDuocSuDung(ApplicationUser user)
+        {
+            if (!PhienNhanVienDangNhap.TryGetValue(user.Id, out var phien))
+            {
+                return false;
+            }
+
+            if (phien.HetHan <= DateTime.UtcNow)
+            {
+                PhienNhanVienDangNhap.TryRemove(user.Id, out _);
+                return false;
+            }
+
+            var tokenHienTai = HttpContext.Session.GetString(SessionNhanVienLoginToken);
+            return string.IsNullOrWhiteSpace(tokenHienTai) || tokenHienTai != phien.Token;
+        }
+
+        private void GiaiPhongPhienNhanVien()
+        {
+            var token = HttpContext.Session.GetString(SessionNhanVienLoginToken);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return;
+            }
+
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return;
+            }
+
+            if (PhienNhanVienDangNhap.TryGetValue(userId, out var phien) && phien.Token == token)
+            {
+                PhienNhanVienDangNhap.TryRemove(userId, out _);
+            }
         }
 
         private static string ChuanHoaVaiTro(string? vaiTro)
@@ -437,7 +500,7 @@ namespace WebQLministop.Areas.KhachHang.Controllers
 
         private static IEnumerable<string> QuyenMacDinh(string vaiTro)
         {
-            return vaiTro == "QuanLy" ? QuyenNhanVienMacDinh : new[] { "NhanVien.BanHang" };
+            return vaiTro == "QuanLy" ? QuyenNhanVienMacDinh : new[] { "BanHang.TaoDon", "BanHang.TraCuuSanPham", "HoaDon.Xem" };
         }
 
         private static bool LaQuyenNhanVienHopLe(string quyen)
@@ -447,9 +510,14 @@ namespace WebQLministop.Areas.KhachHang.Controllers
 
         private static readonly string[] QuyenNhanVienMacDinh =
         {
-            "NhanVien.BanHang",
-            "NhanVien.TraCuuSanPham",
-            "NhanVien.TaoHoaDon"
+            "SanPham.Tao",
+            "DanhMuc.QuanLy",
+            "DonHang.QuanLy",
+            "KhuyenMai.Tao",
+            "HoaDon.Xem",
+            "NhanVien.PhanQuyen",
+            "BanHang.TaoDon",
+            "BanHang.TraCuuSanPham"
         };
 
         private static bool LaQuanLy(NhanVienModel nhanVien)
@@ -457,6 +525,8 @@ namespace WebQLministop.Areas.KhachHang.Controllers
             var chucVu = (nhanVien.ChucVu ?? string.Empty).Trim().ToLowerInvariant();
             return chucVu.Contains("quan") || chucVu.Contains("quản");
         }
+
+        private sealed record PhienDangNhapNhanVien(string Token, DateTime HetHan);
 
         private async Task<KhachHangModel?> TimKhachHangTheoToken(string token)
         {

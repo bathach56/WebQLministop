@@ -15,11 +15,16 @@ public class SePayWebhookController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<SePayWebhookController> _logger;
 
-    public SePayWebhookController(ApplicationDbContext context, IConfiguration configuration)
+    public SePayWebhookController(
+        ApplicationDbContext context,
+        IConfiguration configuration,
+        ILogger<SePayWebhookController> logger)
     {
         _context = context;
         _configuration = configuration;
+        _logger = logger;
     }
 
     [HttpPost("webhook")]
@@ -28,18 +33,41 @@ public class SePayWebhookController : ControllerBase
         using var reader = new StreamReader(Request.Body, Encoding.UTF8);
         var body = await reader.ReadToEndAsync();
 
-        if (!KiemTraBaoMat(body)) return Unauthorized(new { success = false });
+        if (!KiemTraBaoMat(body))
+        {
+            _logger.LogWarning("SePAY webhook bi tu choi do xac thuc khong hop le.");
+            return Unauthorized(new { success = false, message = "Unauthorized" });
+        }
 
-        var payload = JsonSerializer.Deserialize<SePayWebhookPayload>(body, new JsonSerializerOptions 
-        { 
-            PropertyNameCaseInsensitive = true 
-        });
+        SePayWebhookPayload? payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize<SePayWebhookPayload>(body, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "SePAY webhook payload khong phai JSON hop le. Body: {Body}", body);
+            return BadRequest(new { success = false, message = "Invalid JSON" });
+        }
 
-        if (payload == null) return BadRequest(new { success = false });
+        if (payload == null)
+        {
+            _logger.LogWarning("SePAY webhook khong doc duoc payload JSON.");
+            return BadRequest(new { success = false, message = "Invalid payload" });
+        }
 
         var maDonHang = LayMaDonHang(payload.Content, payload.Description, payload.Code);
         if (maDonHang == null || payload.TransferAmount <= 0)
         {
+            _logger.LogInformation(
+                "SePAY webhook bo qua vi khong tim thay ma don hang hoac so tien khong hop le. Content: {Content}, Description: {Description}, Code: {Code}, Amount: {Amount}",
+                payload.Content,
+                payload.Description,
+                payload.Code,
+                payload.TransferAmount);
             return Ok(new { success = true });
         }
 
@@ -54,12 +82,17 @@ public class SePayWebhookController : ControllerBase
 
         if (donHang == null || payload.TransferAmount < donHang.TongTien)
         {
+            _logger.LogInformation(
+                "SePAY webhook khong khop don hang. DonHangId: {DonHangId}, Amount: {Amount}",
+                maDonHang,
+                payload.TransferAmount);
             return Ok(new { success = true });
         }
 
-        if (!string.Equals(payload.TransferType, "in", StringComparison.OrdinalIgnoreCase) &&
+        if (!LaGiaoDichTienVao(payload.TransferType) &&
             !string.IsNullOrWhiteSpace(payload.TransferType))
         {
+            _logger.LogInformation("SePAY webhook bo qua giao dich tien ra. DonHangId: {DonHangId}", maDonHang);
             return Ok(new { success = true });
         }
 
@@ -90,13 +123,39 @@ public class SePayWebhookController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+        _logger.LogInformation("SePAY webhook da xac nhan thanh toan don hang #{DonHangId}.", donHang.Id);
         return Ok(new { success = true });
     }
 
     private bool KiemTraBaoMat(string body)
     {
-        // Tạm thời tắt bảo mật theo yêu cầu của user để test dễ dàng hơn
-        return true;
+        var secret = _configuration["SePay:WebhookApiKey"];
+        if (string.IsNullOrWhiteSpace(secret)) return true;
+
+        var authorization = Request.Headers.Authorization.ToString();
+        if (authorization.StartsWith("Apikey ", StringComparison.OrdinalIgnoreCase))
+        {
+            var apiKey = authorization.Substring("Apikey ".Length).Trim();
+            return string.Equals(apiKey, secret, StringComparison.Ordinal);
+        }
+
+        var xApiKey = Request.Headers["X-API-KEY"].ToString();
+        if (!string.IsNullOrWhiteSpace(xApiKey))
+        {
+            return string.Equals(xApiKey, secret, StringComparison.Ordinal);
+        }
+
+        var signature = Request.Headers["X-SePay-Signature"].ToString();
+        if (string.IsNullOrWhiteSpace(signature)) return false;
+
+        if (signature.StartsWith("sha256="))
+            signature = signature.Substring(7);
+
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(body));
+        var expectedSignature = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+
+        return string.Equals(signature, expectedSignature, StringComparison.OrdinalIgnoreCase);
     }
 
     private static int? LayMaDonHang(params string?[] values)
@@ -119,6 +178,14 @@ public class SePayWebhookController : ControllerBase
         }
 
         return null;
+    }
+
+    private static bool LaGiaoDichTienVao(string? transferType)
+    {
+        if (string.IsNullOrWhiteSpace(transferType)) return true;
+
+        var text = transferType.Trim().ToLowerInvariant();
+        return text is "in" or "income" or "credit" or "deposit" or "receive";
     }
 }
 

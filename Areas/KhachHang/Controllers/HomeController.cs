@@ -24,11 +24,12 @@ namespace WebQLministop.Areas.KhachHang.Controllers
         {
             var sanPhams = await _context.SanPhams
                 .Include(p => p.DanhMuc)
-                .Where(p => p.KichHoat)
+                .Where(p => p.KichHoat && (p.DanhMuc == null || p.DanhMuc.KichHoat))
                 .OrderByDescending(p => p.Id)
                 .ToListAsync();
 
             ViewBag.DanhMucs = await _context.DanhMucs
+                .Where(d => d.KichHoat)
                 .OrderBy(d => d.Ten)
                 .ToListAsync();
             ViewBag.SanPhamsMoi = sanPhams.Take(5).ToList();
@@ -48,25 +49,25 @@ namespace WebQLministop.Areas.KhachHang.Controllers
         [HttpGet]
         public async Task<IActionResult> TimKiem(string? keyword, string? danhMuc, string? sapXep)
         {
-            var query = _context.SanPhams
+            var sanPhams = await _context.SanPhams
                 .Include(p => p.DanhMuc)
-                .Where(p => p.KichHoat);
+                .Where(p => p.KichHoat && (p.DanhMuc == null || p.DanhMuc.KichHoat))
+                .ToListAsync();
 
             if (!string.IsNullOrWhiteSpace(keyword))
             {
-                var kw = keyword.Trim();
-                query = query.Where(p => 
-                    p.Ten.Contains(kw) || 
-                    p.Ma.Contains(kw) || 
-                    (p.DanhMuc != null && p.DanhMuc.Ten.Contains(kw)));
+                var tuKhoaChuan = ChuanHoaTimKiem(keyword);
+                sanPhams = sanPhams
+                    .Where(p => SanPhamKhopTuKhoa(p, tuKhoaChuan))
+                    .ToList();
             }
 
             if (!string.IsNullOrWhiteSpace(danhMuc))
             {
-                query = query.Where(p => p.DanhMuc != null && p.DanhMuc.Ten == danhMuc);
+                sanPhams = sanPhams
+                    .Where(p => p.DanhMuc != null && p.DanhMuc.Ten == danhMuc)
+                    .ToList();
             }
-
-            var sanPhams = await query.ToListAsync();
 
             sanPhams = sapXep switch
             {
@@ -79,6 +80,7 @@ namespace WebQLministop.Areas.KhachHang.Controllers
             ViewData["DanhMuc"] = danhMuc;
             ViewData["SapXep"] = sapXep;
             ViewBag.DanhMucs = await _context.DanhMucs
+                .Where(d => d.KichHoat)
                 .OrderBy(d => d.Ten)
                 .ToListAsync();
             ViewBag.SanPhams = sanPhams.Take(40).ToList();
@@ -95,14 +97,17 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                 return Json(Array.Empty<object>());
             }
 
-            var ketQua = await _context.SanPhams
+            var tuKhoaChuan = ChuanHoaTimKiem(tuKhoa);
+            var sanPhams = await _context.SanPhams
                 .Include(p => p.DanhMuc)
-                .Where(p => p.KichHoat && (
-                    p.Ten.Contains(tuKhoa) || 
-                    p.Ma.Contains(tuKhoa) || 
-                    (p.DanhMuc != null && p.DanhMuc.Ten.Contains(tuKhoa))))
-                .OrderBy(p => p.Ten)
-                .Take(8)
+                .Where(p => p.KichHoat && (p.DanhMuc == null || p.DanhMuc.KichHoat))
+                .ToListAsync();
+
+            var ketQua = sanPhams
+                .Where(p => SanPhamKhopTuKhoa(p, tuKhoaChuan))
+                .OrderByDescending(p => DiemGoiY(p, tuKhoaChuan))
+                .ThenBy(p => p.Ten)
+                .Take(10)
                 .Select(p => new
                 {
                     p.Id,
@@ -112,9 +117,55 @@ namespace WebQLministop.Areas.KhachHang.Controllers
                     DanhMuc = p.DanhMuc != null ? p.DanhMuc.Ten : null,
                     p.HinhAnh
                 })
-                .ToListAsync();
+                .ToList();
 
             return Json(ketQua);
+        }
+
+        private static bool SanPhamKhopTuKhoa(SanPham sanPham, string tuKhoaChuan)
+        {
+            if (string.IsNullOrWhiteSpace(tuKhoaChuan))
+            {
+                return true;
+            }
+
+            return ChuanHoaTimKiem(sanPham.Ten).Contains(tuKhoaChuan)
+                || ChuanHoaTimKiem(sanPham.Ma).Contains(tuKhoaChuan)
+                || ChuanHoaTimKiem(sanPham.MoTa).Contains(tuKhoaChuan)
+                || ChuanHoaTimKiem(sanPham.DanhMuc?.Ten).Contains(tuKhoaChuan);
+        }
+
+        private static int DiemGoiY(SanPham sanPham, string tuKhoaChuan)
+        {
+            var ma = ChuanHoaTimKiem(sanPham.Ma);
+            var ten = ChuanHoaTimKiem(sanPham.Ten);
+            var danhMuc = ChuanHoaTimKiem(sanPham.DanhMuc?.Ten);
+
+            if (ma == tuKhoaChuan || ten == tuKhoaChuan) return 100;
+            if (ma.StartsWith(tuKhoaChuan) || ten.StartsWith(tuKhoaChuan)) return 80;
+            if (danhMuc.StartsWith(tuKhoaChuan)) return 60;
+            if (ma.Contains(tuKhoaChuan) || ten.Contains(tuKhoaChuan)) return 40;
+            return 10;
+        }
+
+        private static string ChuanHoaTimKiem(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            var normalized = text.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+            var builder = new StringBuilder(normalized.Length);
+            foreach (var ch in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                {
+                    builder.Append(ch == 'đ' ? 'd' : ch);
+                }
+            }
+
+            return builder.ToString().Normalize(NormalizationForm.FormC);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

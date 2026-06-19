@@ -12,22 +12,24 @@ namespace WebQLministop.Areas.NhanVien.Controllers;
 public class NhanVienController : Controller
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public NhanVienController(ApplicationDbContext context)
+    public NhanVienController(ApplicationDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index()
     {
-        if (!LaNhanVienHoacQuanLy())
+        if (!CoQuyenBatKy("BanHang.TaoDon", "BanHang.TraCuuSanPham", "HoaDon.Xem"))
         {
             return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
         }
 
         ViewBag.SanPhams = await _context.SanPhams
             .Include(s => s.DanhMuc)
-            .Where(s => s.KichHoat)
+            .Where(s => s.KichHoat && (s.DanhMuc == null || s.DanhMuc.KichHoat))
             .OrderBy(s => s.Ten)
             .ToListAsync();
 
@@ -54,7 +56,7 @@ public class NhanVienController : Controller
     [HttpGet]
     public async Task<IActionResult> TimSanPham(string? tuKhoa)
     {
-        if (!LaNhanVienHoacQuanLy())
+        if (!CoQuyen("BanHang.TraCuuSanPham"))
         {
             return Unauthorized();
         }
@@ -67,7 +69,7 @@ public class NhanVienController : Controller
 
         var sanPhams = await _context.SanPhams
             .Include(s => s.DanhMuc)
-            .Where(s => s.KichHoat)
+            .Where(s => s.KichHoat && (s.DanhMuc == null || s.DanhMuc.KichHoat))
             .OrderBy(s => s.Ten)
             .ToListAsync();
 
@@ -94,7 +96,7 @@ public class NhanVienController : Controller
     [HttpGet]
     public async Task<IActionResult> TimKhachHang(string? ma)
     {
-        if (!LaNhanVienHoacQuanLy()) return Unauthorized();
+        if (!CoQuyen("BanHang.TaoDon")) return Unauthorized();
 
         var search = (ma ?? "").Trim();
         if (string.IsNullOrEmpty(search)) return Json(new { thanhCong = false, thongBao = "Vui lòng nhập mã." });
@@ -117,7 +119,7 @@ public class NhanVienController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TaoDonTaiQuay([FromBody] TaoDonTaiQuayRequest request)
     {
-        if (!LaNhanVienHoacQuanLy())
+        if (!CoQuyen("BanHang.TaoDon"))
         {
             return Unauthorized(new { thanhCong = false, thongBao = "Vui lòng đăng nhập bằng tài khoản nhân viên." });
         }
@@ -129,7 +131,9 @@ public class NhanVienController : Controller
 
         var sanPhamIds = request.SanPhams.Select(i => i.SanPhamId).Distinct().ToList();
         var sanPhams = await _context.SanPhams
+            .Include(s => s.DanhMuc)
             .Where(s => sanPhamIds.Contains(s.Id) && s.KichHoat)
+            .Where(s => s.DanhMuc == null || s.DanhMuc.KichHoat)
             .ToDictionaryAsync(s => s.Id);
 
         var chiTietDonHang = new List<ChiTietDonHang>();
@@ -154,6 +158,9 @@ public class NhanVienController : Controller
             chiTietDonHang.Add(new ChiTietDonHang
             {
                 SanPhamId = sanPham.Id,
+                MaSanPham = sanPham.Ma,
+                TenSanPham = sanPham.Ten,
+                DonViSanPham = sanPham.DonVi,
                 SoLuong = item.SoLuong,
                 DonGia = sanPham.GiaBan,
                 TienGiam = 0m
@@ -219,16 +226,123 @@ public class NhanVienController : Controller
         _context.DonHangs.Add(donHang);
         await _context.SaveChangesAsync();
 
+        var qrUrl = "";
+        var noiDung = "";
+        if (phuongThuc == "ChuyenKhoan")
+        {
+            var bank = _configuration["SePay:Bank"] ?? "BIDV";
+            var accountNumber = _configuration["SePay:VirtualAccountNumber"] ?? _configuration["SePay:AccountNumber"] ?? "";
+            var accountHolder = _configuration["SePay:AccountHolder"] ?? "";
+            noiDung = $"DH{donHang.Id:000000}";
+            qrUrl = "https://qr.sepay.vn/img"
+                + $"?bank={Uri.EscapeDataString(bank)}"
+                + $"&acc={Uri.EscapeDataString(accountNumber)}"
+                + $"&amount={(long)donHang.TongTien}"
+                + $"&des={Uri.EscapeDataString(noiDung)}"
+                + $"&accountName={Uri.EscapeDataString(accountHolder)}"
+                + "&template=compact";
+        }
+
         return Json(new
         {
             thanhCong = true,
             maDonHang = donHang.Id,
             tongTien = donHang.TongTien,
             diemCong,
+            qrUrl,
+            noiDung,
             thongBao = diemCong > 0
                 ? $"Đã tạo hóa đơn #{donHang.Id}. Khách được cộng {diemCong:N0} điểm tích lũy."
                 : $"Đã tạo hóa đơn #{donHang.Id}."
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> KiemTraThanhToanSePay(int donHangId)
+    {
+        if (!LaNhanVienHoacQuanLy()) return Unauthorized(new { thanhCong = false, thongBao = "Không có quyền kiểm tra." });
+
+        var donHang = await _context.DonHangs.Include(d => d.KhachHang).FirstOrDefaultAsync(d => d.Id == donHangId);
+        if (donHang == null) return Json(new { thanhCong = false, thongBao = "Không tìm thấy hóa đơn." });
+        if (donHang.TrangThai == "DaThanhToan") return Json(new { thanhCong = true, thongBao = "Đã thanh toán." });
+
+        var apiToken = _configuration["SePay:ApiToken"];
+        if (string.IsNullOrWhiteSpace(apiToken)) return Json(new { thanhCong = false, thongBao = "Chưa cấu hình SePAY API token." });
+
+        try
+        {
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiToken);
+            var url = "https://my.sepay.vn/userapi/transactions/list?limit=50";
+            var response = await httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return Json(new { thanhCong = false, thongBao = $"Lỗi gọi API SePAY: {(int)response.StatusCode}." });
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            var noiDung = $"DH{donHang.Id:000000}";
+            
+            if (CoGiaoDichKhop(document.RootElement, noiDung, donHang.TongTien))
+            {
+                donHang.TrangThai = "DaThanhToan";
+                donHang.GhiChuThanhToan = $"{donHang.GhiChuThanhToan} Xác nhận bởi SePAY tại quầy.";
+                if (donHang.KhachHang != null && donHang.DiemThuongCong > 0)
+                {
+                    donHang.KhachHang.DiemThuong += donHang.DiemThuongCong;
+                }
+                await _context.SaveChangesAsync();
+                return Json(new { thanhCong = true, thongBao = "Thanh toán thành công. Đang in hóa đơn..." });
+            }
+
+            return Json(new { thanhCong = false, thongBao = "Chưa nhận được thanh toán. Vui lòng đợi..." });
+        }
+        catch
+        {
+            return Json(new { thanhCong = false, thongBao = "Lỗi kết nối đến SePAY." });
+        }
+    }
+
+    private static bool CoGiaoDichKhop(System.Text.Json.JsonElement element, string maDonHang, decimal tongTien)
+    {
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            var content = "";
+            var amount = 0m;
+            var type = "";
+
+            foreach (var property in element.EnumerateObject())
+            {
+                var name = property.Name.ToLowerInvariant();
+                if (name is "content" or "description" or "transaction_content") content = property.Value.GetString() ?? "";
+                else if (name is "transferamount" or "transfer_amount" or "amount_in" or "amount" or "money")
+                {
+                    if (property.Value.ValueKind == System.Text.Json.JsonValueKind.Number && property.Value.TryGetDecimal(out var n)) amount = n;
+                    else if (property.Value.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(property.Value.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var n2)) amount = n2;
+                }
+                else if (name is "transfertype" or "transfer_type" or "type") type = property.Value.GetString() ?? "";
+            }
+
+            if (!string.IsNullOrWhiteSpace(content) &&
+                content.Contains(maDonHang, StringComparison.OrdinalIgnoreCase) &&
+                amount >= tongTien &&
+                (string.IsNullOrWhiteSpace(type) || type.Equals("in", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            foreach (var property in element.EnumerateObject())
+            {
+                if (CoGiaoDichKhop(property.Value, maDonHang, tongTien)) return true;
+            }
+        }
+        else if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                if (CoGiaoDichKhop(item, maDonHang, tongTien)) return true;
+            }
+        }
+        return false;
     }
 
     private async Task<int?> LayNhanVienLapDon(int? nhanVienIdDuocChon)
@@ -303,14 +417,36 @@ public class NhanVienController : Controller
 
     private bool LaNhanVienHoacQuanLy()
     {
-        var vaiTro = HttpContext.Session.GetString("VaiTro");
-        return vaiTro == "NhanVien" || vaiTro == "QuanLy";
+        return CoQuyen("BanHang.TaoDon");
+    }
+
+    private bool CoQuyen(string quyen)
+    {
+        if (HttpContext.Session.GetString("VaiTro") == "QuanLy")
+        {
+            return true;
+        }
+
+        if (HttpContext.Session.GetString("VaiTro") != "NhanVien")
+        {
+            return false;
+        }
+
+        var quyens = HttpContext.Session.GetString("QuyenNhanVien");
+        return !string.IsNullOrWhiteSpace(quyens) &&
+            quyens.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Contains(quyen, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool CoQuyenBatKy(params string[] quyens)
+    {
+        return quyens.Any(CoQuyen);
     }
 
     [HttpGet]
     public async Task<IActionResult> InHoaDon(int id)
     {
-        if (!LaNhanVienHoacQuanLy()) return Unauthorized();
+        if (!CoQuyen("HoaDon.Xem")) return Unauthorized();
 
         var donHang = await _context.DonHangs
             .Include(d => d.KhachHang)

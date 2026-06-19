@@ -146,12 +146,22 @@ function dinhDangTien(value) {
     return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + "đ";
 }
 
+function thoatHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
 function ganAutocompleteTimKiem() {
     const inputs = document.querySelectorAll('form[action*="TimKiem"] input[name="keyword"], input.guest-search-input[name="keyword"]');
     if (inputs.length === 0) return;
 
     inputs.forEach((input) => {
         let timer;
+        let requestGanNhat = 0;
         const wrapper = input.closest(".search-input-wrapper") || input.closest("form");
         input.setAttribute("autocomplete", "off");
         wrapper?.classList.add("search-autocomplete-form");
@@ -166,11 +176,12 @@ function ganAutocompleteTimKiem() {
 
         const chonGoiY = (tenSanPham) => {
             input.value = tenSanPham;
-            const url = `/Home/TimKiem?keyword=${encodeURIComponent(tenSanPham)}`;
+            const url = `/TimKiem?keyword=${encodeURIComponent(tenSanPham)}`;
             window.location.href = url;
         };
 
         const veGoiY = (items) => {
+            items = Array.isArray(items) ? items : [];
             if (!items.length) {
                 panel.innerHTML = '<div class="search-autocomplete-empty">Không có gợi ý phù hợp.</div>';
                 panel.classList.add("is-open");
@@ -181,16 +192,20 @@ function ganAutocompleteTimKiem() {
                 const ten = item.ten ?? item.Ten ?? "";
                 const ma = item.ma ?? item.Ma ?? "";
                 const giaBan = item.giaBan ?? item.GiaBan ?? 0;
-                const danhMuc = item.danhMuc ?? item.DanhMuc ?? "";
+                const danhMuc = item.tenDanhMuc ?? item.danhMuc ?? item.DanhMuc ?? "";
                 const hinhAnh = item.hinhAnh ?? item.HinhAnh ?? "";
                 const anh = hinhAnh || "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=120&q=80";
+                const tenHtml = thoatHtml(ten);
+                const maHtml = thoatHtml(ma);
+                const danhMucHtml = thoatHtml(danhMuc);
+                const anhHtml = thoatHtml(anh);
 
                 return `
-                    <button type="button" class="search-autocomplete-item" data-ten="${ten.replaceAll('"', "&quot;")}">
-                        <img src="${anh}" alt="${ten}">
+                    <button type="button" class="search-autocomplete-item" data-ten="${tenHtml}">
+                        <img src="${anhHtml}" alt="${tenHtml}">
                         <span>
-                            <strong>${ten}</strong>
-                            <small>${ma} ${danhMuc ? `- ${danhMuc}` : ""} - ${dinhDangTien(giaBan)}</small>
+                            <strong>${tenHtml}</strong>
+                            <small>${maHtml} ${danhMuc ? `- ${danhMucHtml}` : ""} - ${dinhDangTien(giaBan)}</small>
                         </span>
                     </button>
                 `;
@@ -215,12 +230,15 @@ function ganAutocompleteTimKiem() {
             }
 
             timer = window.setTimeout(async () => {
+                const requestHienTai = ++requestGanNhat;
                 try {
                     let response = await fetch(`/Home/GoiYTimKiem?tuKhoa=${encodeURIComponent(tuKhoa)}`, {
+                        cache: "no-store",
                         headers: { "Accept": "application/json" }
                     });
                     if (response.status === 404) {
                         response = await fetch(`/KhachHang/Home/GoiYTimKiem?tuKhoa=${encodeURIComponent(tuKhoa)}`, {
+                            cache: "no-store",
                             headers: { "Accept": "application/json" }
                         });
                     }
@@ -229,6 +247,9 @@ function ganAutocompleteTimKiem() {
                         return;
                     }
                     const items = await response.json();
+                    if (requestHienTai !== requestGanNhat) {
+                        return;
+                    }
                     veGoiY(items);
                 } catch {
                     dongPanel();
@@ -237,7 +258,6 @@ function ganAutocompleteTimKiem() {
         };
 
         input.addEventListener("input", xuLyNhap);
-        input.addEventListener("keyup", xuLyNhap);
         input.addEventListener("focus", xuLyNhap);
 
         input.addEventListener("keydown", (event) => {

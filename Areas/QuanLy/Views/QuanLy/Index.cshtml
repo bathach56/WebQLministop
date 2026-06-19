@@ -13,6 +13,10 @@
     var khuyenMais = ViewBag.KhuyenMais as List<KhuyenMai> ?? new List<KhuyenMai>();
     var danhMucs = ViewBag.DanhMucs as List<DanhMuc> ?? new List<DanhMuc>();
     var nhaCungCaps = ViewBag.NhaCungCaps as List<NhaCungCap> ?? new List<NhaCungCap>();
+    var danhSachQuyen = ViewBag.DanhSachQuyen as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
+    var nhanVienQuyens = ViewBag.NhanVienQuyens as Dictionary<int, HashSet<string>> ?? new Dictionary<int, HashSet<string>>();
+    var quyenHienTai = ViewBag.QuyenHienTai as HashSet<string> ?? new HashSet<string>();
+    bool CoQuyen(string quyen) => quyenHienTai.Contains(quyen);
     var topSanPhams = donHangs
         .SelectMany(d => d.ChiTiet)
         .Where(c => c.SanPham != null)
@@ -37,6 +41,26 @@
     string TimeText(DateTime value) => value.ToLocalTime().ToString("HH:mm", culture);
     string ProductStatus(SanPham product) => !product.KichHoat ? "Ngừng bán" : product.TonKho <= 0 ? "Hết hàng" : product.TonKho <= product.MucCanNhapLai ? "Sắp hết" : "Đang bán";
     string ProductBadge(SanPham product) => !product.KichHoat || product.TonKho <= 0 ? "danger" : product.TonKho <= product.MucCanNhapLai ? "warning" : "success";
+    string HienThiDonVi(string? donVi) => donVi?.Trim().ToLowerInvariant() switch
+    {
+        "cai" => "Cái",
+        "cái" => "Cái",
+        "cuon" => "Cuộn",
+        "cuộn" => "Cuộn",
+        "hop" => "Hộp",
+        "hộp" => "Hộp",
+        "cay" => "Cây",
+        "cây" => "Cây",
+        "goi" => "Gói",
+        "gói" => "Gói",
+        "chai" => "Chai",
+        "lon" => "Lon",
+        "thung" => "Thùng",
+        "thùng" => "Thùng",
+        "o" => "Ổ",
+        "ổ" => "Ổ",
+        _ => string.IsNullOrWhiteSpace(donVi) ? "Cái" : donVi
+    };
     string OrderBadge(string status) => status == "ThanhCong" || status == "DaThanhToan" ? "success" : status == "ChoXuLy" || status == "DangXuLy" ? "warning" : "info";
     string OrderText(string? status) => status switch
     {
@@ -180,7 +204,7 @@
                     <div class="space-y-3">
                         @foreach (var product in sanPhams.Where(p => p.TonKho <= p.MucCanNhapLai).Take(4))
                         {
-                            <div class="alert-row @(product.TonKho <= 0 ? "danger" : "warning")"><span>!</span><p>@product.Ten còn @product.TonKho @product.DonVi</p></div>
+                            <div class="alert-row @(product.TonKho <= 0 ? "danger" : "warning")"><span>!</span><p>@product.Ten còn @product.TonKho @HienThiDonVi(product.DonVi)</p></div>
                         }
                         @if (!sanPhams.Any(p => p.TonKho <= p.MucCanNhapLai))
                         {
@@ -218,10 +242,14 @@
             <div class="alert-row @(TempData["SanPhamMessageType"]?.ToString() == "danger" ? "danger" : "info")"><span>i</span><p>@sanPhamMessage</p></div>
         }
         <div class="filter-panel">
-            <label><span>Tìm kiếm</span><input data-product-search type="search" placeholder="Tên hoặc mã sản phẩm"></label>
+            <label class="manager-search-autocomplete">
+                <span>Tìm kiếm</span>
+                <input data-product-search type="search" placeholder="Tên hoặc mã sản phẩm" autocomplete="off">
+                <div class="manager-search-suggestions" data-product-search-suggestions></div>
+            </label>
             <label><span>Danh mục</span><select data-product-category><option value="">Tất cả danh mục</option>@foreach (var category in danhMucs){<option value="@category.Id">@HienThiDanhMuc(category.Ten)</option>}</select></label>
             <label><span>Trạng thái</span><select data-product-status><option value="">Tất cả trạng thái</option><option value="Đang bán">Đang bán</option><option value="Sắp hết">Sắp hết</option><option value="Hết hàng">Hết hàng</option><option value="Ngừng bán">Ngừng bán</option></select></label>
-            <label><span>Giá tối đa</span><input data-product-max-price type="number" min="0" step="1000" placeholder="Ví dụ 20000"></label>
+            <label><span>Giá tối đa</span><input data-product-max-price type="number" min="0" step="100" placeholder="Ví dụ 20000"></label>
         </div>
         <article class="manager-card overflow-hidden">
             <div class="table-wrap">
@@ -255,7 +283,7 @@
                                 </td>
                                 <td>@HienThiDanhMuc(product.DanhMuc?.Ten)</td>
                                 <td>@Money(product.GiaBan)</td>
-                                <td>@product.TonKho @product.DonVi</td>
+                                <td>@product.TonKho @HienThiDonVi(product.DonVi)</td>
                                 <td><span class="badge @ProductBadge(product)">@ProductStatus(product)</span></td>
                                 <td>
                                     <div class="order-actions">
@@ -377,6 +405,41 @@
             }
         </div>
         <article class="manager-card overflow-hidden"><div class="table-wrap"><table class="manager-table"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Chức vụ / role</th><th>Lương</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>@foreach (var staff in nhanViens){<tr><td>NV-@staff.Id.ToString("0000")</td><td>@staff.HoTen</td><td>@(staff.DienThoai ?? "-")</td><td>@(staff.Email ?? "-")</td><td><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="CapNhatChucVuNhanVien" method="post" class="inline-form role-inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@staff.Id"><select name="chucVu"><option value="Nhan vien" selected="@(staff.ChucVu == "Nhan vien")">Nhân viên</option><option value="Thu ngan" selected="@(staff.ChucVu == "Thu ngan")">Thu ngân</option><option value="Pha che" selected="@(staff.ChucVu == "Pha che")">Pha chế</option><option value="Kho" selected="@(staff.ChucVu == "Kho")">Kho</option><option value="Quan ly" selected="@(staff.ChucVu == "Quan ly")">Quản lý</option></select><button class="btn-secondary" type="submit">Lưu role</button></form></td><td>@Money(staff.Luong)</td><td><span class="badge @(staff.KichHoat ? "success" : "danger")">@(staff.KichHoat ? "Đang hoạt động" : "Ngừng")</span></td><td><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="ToggleNhanVien" method="post" class="inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@staff.Id"><button class="btn-secondary" type="submit">@(staff.KichHoat ? "Ngừng" : "Kích hoạt")</button></form></td></tr>}</tbody></table></div>@if (!nhanViens.Any()){<div class="empty-state compact"><span>◎</span><h3>Chưa có nhân viên</h3><p>Thêm nhân viên để quản lý hồ sơ và phân quyền.</p></div>}</article>
+        @if (CoQuyen("NhanVien.PhanQuyen"))
+        {
+            <article class="manager-card">
+                <div class="card-head"><div><p class="eyebrow">Claims</p><h3>Phan quyen theo chuc nang</h3></div></div>
+                <div class="grid gap-4 md:grid-cols-2">
+                    @foreach (var staff in nhanViens)
+                    {
+                        var quyenCuaNhanVien = nhanVienQuyens.TryGetValue(staff.Id, out var value) ? value : new HashSet<string>();
+                        var laQuanLyNhanVien = staff.ChucVu == "Quan ly";
+                        <form asp-area="QuanLy" asp-controller="QuanLy" asp-action="CapNhatQuyenNhanVien" method="post" class="manager-card" style="box-shadow:none;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@staff.Id">
+                            <div class="card-head"><div><h3>@staff.HoTen</h3><p class="eyebrow">NV-@staff.Id.ToString("0000") - @HienThiChucVu(staff.ChucVu)</p></div></div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                @foreach (var quyen in danhSachQuyen)
+                                {
+                                    <label class="inline-flex items-center gap-2 text-sm">
+                                        <input type="checkbox" name="quyens" value="@quyen.Key" checked="@(laQuanLyNhanVien || quyenCuaNhanVien.Contains(quyen.Key))" disabled="@laQuanLyNhanVien">
+                                        <span>@quyen.Value</span>
+                                    </label>
+                                }
+                            </div>
+                            @if (laQuanLyNhanVien)
+                            {
+                                <p class="mt-3 text-sm text-slate-500">Quan ly mac dinh co toan quyen.</p>
+                            }
+                            else
+                            {
+                                <button class="btn-primary mt-3" type="submit">Luu quyen</button>
+                            }
+                        </form>
+                    }
+                </div>
+            </article>
+        }
     </section>
 
     <section id="suppliers" class="manager-page hidden space-y-6" data-page="suppliers">
@@ -476,8 +539,8 @@
             <section class="product-form-section">
                 <div class="form-section-title"><span>3</span><strong>Giá bán & tồn kho</strong></div>
                 <div class="modal-grid" style="margin-bottom: 0.9rem;">
-                    <label><span>Giá nhập</span><input name="GiaVon" type="number" min="0" step="1000" value="0" required></label>
-                    <label><span>Giá bán</span><input name="GiaBan" type="number" min="0" step="1000" value="0" required></label>
+                    <label><span>Giá nhập</span><input name="GiaVon" type="number" min="0" step="100" value="0" required></label>
+                    <label><span>Giá bán</span><input name="GiaBan" type="number" min="0" step="100" value="0" required></label>
                     <label><span>Tồn kho hiện tại</span><input name="TonKho" type="number" min="0" step="1" value="0" required></label>
                 </div>
                 <label style="display: block;"><span>Cảnh báo hết hàng khi tồn kho dưới:</span><input name="MucCanNhapLai" type="number" min="0" step="1" value="10" required></label>
@@ -534,7 +597,7 @@
                 <div class="staff-display-grid">
                     <label><span>Họ tên</span><input name="HoTen" placeholder="Nguyễn Văn A" maxlength="120" required></label>
                     <label><span>Chức vụ</span><select name="ChucVu" required><option value="Nhan vien">Nhân viên</option><option value="Thu ngan">Thu ngân</option><option value="Pha che">Pha chế</option><option value="Kho">Kho</option><option value="Quan ly">Quản lý</option></select></label>
-                    <label><span>Lương</span><input name="Luong" type="number" min="0" step="1000" value="0"></label>
+                    <label><span>Lương</span><input name="Luong" type="number" min="0" step="100" value="0"></label>
                     <label><span>SĐT</span><input name="DienThoai" placeholder="090..." maxlength="20"></label>
                     <label><span>Email</span><input name="Email" type="email" placeholder="email@ministop.vn" maxlength="120"></label>
                     <label><span>Mật khẩu</span><input name="matKhau" type="password" placeholder="Mặc định 123456" autocomplete="new-password"></label>
@@ -729,11 +792,40 @@
             const productSubmitText = document.getElementById("productSubmitText");
             const productRows = document.querySelectorAll("[data-product-row]");
             const productSearch = document.querySelector("[data-product-search]");
+            const productSearchSuggestions = document.querySelector("[data-product-search-suggestions]");
             const productCategory = document.querySelector("[data-product-category]");
             const productStatus = document.querySelector("[data-product-status]");
             const productMaxPrice = document.querySelector("[data-product-max-price]");
             const createProductAction = "/QuanLy/CreateSanPham";
             const updateProductAction = "/QuanLy/UpdateSanPham";
+            const normalizeSearchText = (value) => (value ?? "")
+                .toString()
+                .trim()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/đ/g, "d");
+            const escapeHtml = (value) => (value ?? "")
+                .toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+            const productSearchItems = Array.from(productRows).map(row => {
+                const cells = row.querySelectorAll("td");
+                const name = row.dataset.name ?? "";
+                const code = row.dataset.code ?? "";
+                const categoryText = cells[3]?.textContent?.trim() ?? "";
+                const priceText = cells[4]?.textContent?.trim() ?? "";
+                return {
+                    name,
+                    code,
+                    categoryText,
+                    priceText,
+                    search: normalizeSearchText(`${name} ${code} ${categoryText}`)
+                };
+            });
 
             const setProductField = (name, value) => {
                 const field = productForm?.querySelector(`[name="${name}"]`);
@@ -831,13 +923,13 @@
             promoModal?.addEventListener("click", event => { if (event.target === promoModal) promoModal.classList.add("hidden"); });
 
             const filterProducts = () => {
-                const keyword = (productSearch?.value ?? "").trim().toLowerCase();
+                const keyword = normalizeSearchText(productSearch?.value);
                 const category = productCategory?.value ?? "";
                 const status = productStatus?.value ?? "";
                 const maxPrice = Number(productMaxPrice?.value || 0);
 
                 productRows.forEach(row => {
-                    const text = `${row.dataset.name ?? ""} ${row.dataset.code ?? ""}`.toLowerCase();
+                    const text = normalizeSearchText(`${row.dataset.name ?? ""} ${row.dataset.code ?? ""}`);
                     const price = Number(row.dataset.price || 0);
                     const matchedKeyword = !keyword || text.includes(keyword);
                     const matchedCategory = !category || row.dataset.category === category;
@@ -847,7 +939,68 @@
                 });
             };
 
-            [productSearch, productCategory, productStatus, productMaxPrice].forEach(input => {
+            const closeProductSuggestions = () => {
+                productSearchSuggestions?.classList.remove("is-open");
+            };
+
+            const renderProductSuggestions = () => {
+                if (!productSearch || !productSearchSuggestions) return;
+                const keyword = normalizeSearchText(productSearch.value);
+
+                if (!keyword) {
+                    productSearchSuggestions.innerHTML = "";
+                    closeProductSuggestions();
+                    return;
+                }
+
+                const scoreSuggestion = (item) => {
+                    const code = normalizeSearchText(item.code);
+                    const name = normalizeSearchText(item.name);
+                    if (code === keyword || name === keyword) return 100;
+                    if (code.startsWith(keyword) || name.startsWith(keyword)) return 80;
+                    return 10;
+                };
+
+                const matches = productSearchItems
+                    .filter(item => item.search.includes(keyword))
+                    .sort((a, b) => scoreSuggestion(b) - scoreSuggestion(a) || a.name.localeCompare(b.name))
+                    .slice(0, 8);
+
+                if (!matches.length) {
+                    productSearchSuggestions.innerHTML = '<div class="manager-search-empty">Không có sản phẩm phù hợp.</div>';
+                    productSearchSuggestions.classList.add("is-open");
+                    return;
+                }
+
+                productSearchSuggestions.innerHTML = matches.map(item => `
+                    <button class="manager-search-suggestion" type="button" data-product-suggestion="${escapeHtml(item.name)}">
+                        <strong>${escapeHtml(item.name)}</strong>
+                        <span>${escapeHtml(item.code)}${item.categoryText ? ` · ${escapeHtml(item.categoryText)}` : ""}${item.priceText ? ` · ${escapeHtml(item.priceText)}` : ""}</span>
+                    </button>
+                `).join("");
+                productSearchSuggestions.classList.add("is-open");
+            };
+
+            productSearch?.addEventListener("input", () => {
+                filterProducts();
+                renderProductSuggestions();
+            });
+            productSearch?.addEventListener("focus", renderProductSuggestions);
+            productSearch?.addEventListener("keydown", event => {
+                if (event.key === "Escape") closeProductSuggestions();
+            });
+            productSearchSuggestions?.addEventListener("click", event => {
+                const button = event.target.closest("[data-product-suggestion]");
+                if (!button || !productSearch) return;
+                productSearch.value = button.dataset.productSuggestion ?? "";
+                closeProductSuggestions();
+                filterProducts();
+            });
+            document.addEventListener("click", event => {
+                if (!event.target.closest(".manager-search-autocomplete")) closeProductSuggestions();
+            });
+
+            [productCategory, productStatus, productMaxPrice].forEach(input => {
                 input?.addEventListener("input", filterProducts);
                 input?.addEventListener("change", filterProducts);
             });

@@ -79,12 +79,13 @@
 
     .product-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 14px;
         padding: 20px;
         overflow-y: auto;
         align-content: start;
         flex-grow: 1;
+        grid-auto-rows: 240px;
     }
 
     .product-card {
@@ -96,6 +97,9 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        min-height: 0;
+        height: 240px;
+        isolation: isolate;
     }
 
     .product-card:hover {
@@ -106,37 +110,69 @@
 
     .product-img {
         width: 100%;
-        height: 120px;
+        height: 112px;
+        min-height: 112px;
+        max-height: 112px;
         object-fit: cover;
         background: #f9fafb;
+        display: block;
+        flex: 0 0 112px;
     }
 
     .product-info {
-        padding: 12px;
-        text-align: center;
+        padding: 10px 12px 12px;
+        text-align: left;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 0;
     }
 
     .product-name {
-        font-weight: 600;
-        font-size: 0.9rem;
+        font-weight: 800;
+        font-size: 0.92rem;
+        line-height: 1.25;
         color: #111827;
-        margin-bottom: 4px;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        height: 2.6rem;
+        min-height: 2.3rem;
     }
 
     .product-price {
         color: #10b981;
         font-weight: 700;
+        margin-top: 8px;
     }
 
     .product-stock {
         font-size: 0.75rem;
         color: #6b7280;
-        margin-top: 4px;
+        margin-top: 2px;
+    }
+
+    .product-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 0.72rem;
+        color: #64748b;
+    }
+
+    .product-code {
+        background: #f1f5f9;
+        border-radius: 999px;
+        color: #334155;
+        font-weight: 800;
+        max-width: 50%;
+        overflow: hidden;
+        padding: 4px 8px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .cart-list {
@@ -313,6 +349,42 @@
         border-color: #10b981;
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
     }
+
+    .category-filter {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: thin;
+    }
+
+    .category-btn {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        color: #475569;
+        cursor: pointer;
+        flex: 0 0 auto;
+        font-size: 0.86rem;
+        font-weight: 800;
+        line-height: 1;
+        padding: 10px 14px;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .category-btn:hover {
+        border-color: #10b981;
+        color: #047857;
+    }
+
+    .category-btn.active {
+        background: #10b981;
+        border-color: #10b981;
+        color: #ffffff;
+        box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
+    }
 </style>
 
 <form id="ajaxAntiForgeryForm" class="hidden">
@@ -326,6 +398,7 @@
             <div class="search-bar">
                 <input id="searchInput" type="text" class="search-input" placeholder="Tìm kiếm hoặc quét mã sản phẩm..." autocomplete="off">
             </div>
+            <div id="categoryFilter" class="category-filter" aria-label="Lọc danh mục sản phẩm"></div>
         </div>
         <div id="productList" class="product-grid">
             <!-- Sản phẩm sẽ được render bằng JS ở đây -->
@@ -387,6 +460,34 @@
     </div>
 </div>
 
+<!-- Modal QR SePAY -->
+<div id="sepayModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 24px; border-radius: 16px; text-align: center; max-width: 400px; width: 100%; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+        <h3 style="margin-top: 0; color: #111827; font-weight: 700; font-size: 1.5rem;">Thanh toán QR</h3>
+        <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 20px;">Khách hàng quét mã QR bên dưới để thanh toán.</p>
+        
+        <div style="position: relative; width: 240px; height: 240px; margin: 0 auto;">
+            <img id="sepayQrImage" src="" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain; border-radius: 12px; border: 1px solid #e5e7eb; padding: 12px;" />
+            <div id="sepaySuccessOverlay" style="display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.9); align-items: center; justify-content: center; border-radius: 12px;">
+                <svg style="width: 80px; height: 80px; color: #10b981;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; font-weight: 800; color: #0369a1; font-size: 1.5rem;" id="sepayAmount"></div>
+        <div style="margin-top: 4px; font-family: monospace; font-size: 1.1rem; color: #374151; user-select: all; background: #f3f4f6; display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 600;" id="sepayContent"></div>
+
+        <p id="sepayStatusText" style="color: #d97706; font-size: 0.9rem; margin-top: 20px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg class="animate-spin" style="width: 20px; height: 20px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Đang chờ thanh toán...
+        </p>
+        
+        <button type="button" onclick="closeSepayModal()" style="margin-top: 24px; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d1d5db; background: white; color: #374151; font-weight: 600; cursor: pointer; transition: background 0.2s;">Đóng / Hủy kiểm tra</button>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         const sanPhams = @Html.Raw(sanPhamJson);
@@ -400,12 +501,42 @@
         const cartList = document.getElementById("cartList");
         const totalAmount = document.getElementById("totalAmount");
         const searchInput = document.getElementById("searchInput");
+        const categoryFilter = document.getElementById("categoryFilter");
         const khachHangSelect = document.getElementById("khachHangSelect");
         const nhanVienSelect = document.getElementById("nhanVienSelect");
         const checkoutButton = document.getElementById("checkoutButton");
         let searchTimer;
         let diemKhachHang = 0;
         let diemSuDung = 0;
+        let activeCategory = "Tat ca";
+
+        function getCategoryKey(value) {
+            return (value || "Khác").trim();
+        }
+
+        function getFilteredProducts(products) {
+            if (activeCategory === "Tat ca") return products;
+            return products.filter(item => getCategoryKey(item.DanhMuc) === activeCategory);
+        }
+
+        function renderCategoryFilters() {
+            if (!categoryFilter) return;
+
+            const categories = ["Tat ca", ...new Set(sanPhams.map(item => getCategoryKey(item.DanhMuc)))];
+            categoryFilter.innerHTML = categories.map(category => `
+                <button type="button"
+                        class="category-btn ${category === activeCategory ? 'active' : ''}"
+                        data-category="${category}">
+                    ${category === "Tat ca" ? "Tất cả" : category}
+                </button>
+            `).join("");
+        }
+
+        function selectCategory(category) {
+            activeCategory = category || "Tat ca";
+            renderCategoryFilters();
+            searchProducts();
+        }
 
         async function searchKhachHang() {
             const input = document.getElementById("khachHangSearchInput");
@@ -528,9 +659,14 @@
                 <div class="product-card" onclick="addToCart(${item.Id})">
                     <img class="product-img" src="${item.HinhAnh}" alt="${item.Ten}" onerror="this.src='https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80'" />
                     <div class="product-info">
-                        <div class="product-name" title="${item.Ten}">${item.Ten}</div>
-                        <div class="product-price">${formatMoney(item.GiaBan)}</div>
-                        <div class="product-stock">Tồn: ${item.TonKho} ${item.DonVi}</div>
+                        <div>
+                            <div class="product-name" title="${item.Ten}">${item.Ten}</div>
+                            <div class="product-price">${formatMoney(item.GiaBan)}</div>
+                        </div>
+                        <div class="product-meta">
+                            <span class="product-code" title="${item.Ma}">${item.Ma}</span>
+                            <span class="product-stock">Tồn: ${item.TonKho} ${item.DonVi}</span>
+                        </div>
                     </div>
                 </div>
             `).join("");
@@ -541,7 +677,7 @@
 
             const keyword = searchInput.value.trim();
             if (keyword.length === 0) {
-                renderProducts(sanPhams);
+                renderProducts(getFilteredProducts(sanPhams));
                 return;
             }
 
@@ -560,7 +696,7 @@
                     DanhMuc: item.DanhMuc ?? item.danhMuc,
                     HinhAnh: item.HinhAnh || item.hinhAnh || (sanPhams.find(p => p.Id === (item.Id || item.id))?.HinhAnh) || "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80"
                 }));
-                renderProducts(products);
+                renderProducts(getFilteredProducts(products));
             } catch (error) {
                 console.error(error);
             }
@@ -627,6 +763,12 @@
             });
         }
 
+        categoryFilter?.addEventListener("click", event => {
+            const button = event.target.closest(".category-btn");
+            if (!button) return;
+            selectCategory(button.dataset.category);
+        });
+
         function getAntiForgeryToken() {
             return document.querySelector("#ajaxAntiForgeryForm input[name='__RequestVerificationToken']")?.value || "";
         }
@@ -663,15 +805,20 @@
 
                 const result = await response.json();
                 if (result.thanhCong) {
-                    // Chỉ in hóa đơn ngay nếu thanh toán bằng Tiền mặt
-                    if (currentPaymentMethod !== "ChuyenKhoan") {
+                    if (currentPaymentMethod === "ChuyenKhoan") {
+                        // Hiện popup SePAY và bắt đầu poll
+                        showSepayModal(result.maDonHang, result.qrUrl, result.tongTien, result.noiDung);
+                        cart.clear();
+                        renderCart();
+                        return; // return immediately so we don't reload
+                    } else {
+                        // Tiền mặt
                         window.open(`/NhanVien/InHoaDon?id=${result.maDonHang}`, '_blank');
+                        alert(result.thongBao);
+                        cart.clear();
+                        renderCart();
+                        window.location.reload();
                     }
-
-                    alert(result.thongBao);
-                    cart.clear();
-                    renderCart();
-                    window.location.reload();
                 } else {
                     alert(result.thongBao || "Không thể tạo hóa đơn. Vui lòng thử lại.");
                 }
@@ -684,7 +831,74 @@
             }
         });
 
+        let sepayPollTimer = null;
+        
+        function showSepayModal(donHangId, qrUrl, amount, content) {
+            document.getElementById('sepayQrImage').src = qrUrl;
+            document.getElementById('sepayAmount').textContent = formatMoney(amount);
+            document.getElementById('sepayContent').textContent = content;
+            document.getElementById('sepaySuccessOverlay').style.display = 'none';
+            document.getElementById('sepayStatusText').innerHTML = `
+                <svg style="width: 20px; height: 20px; animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Đang chờ thanh toán...
+            `;
+            document.getElementById('sepayStatusText').style.color = '#d97706';
+            document.getElementById('sepayModal').style.display = 'flex';
+            
+            // Add keyframes if missing
+            if (!document.getElementById('sepay-styles')) {
+                const style = document.createElement('style');
+                style.id = 'sepay-styles';
+                style.innerHTML = `@@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+                document.head.appendChild(style);
+            }
+
+            pollSePay(donHangId);
+        }
+
+        function closeSepayModal() {
+            document.getElementById('sepayModal').style.display = 'none';
+            if (sepayPollTimer) {
+                clearTimeout(sepayPollTimer);
+                sepayPollTimer = null;
+            }
+            window.location.reload();
+        }
+
+        async function pollSePay(donHangId) {
+            try {
+                const fd = new FormData();
+                fd.append('donHangId', donHangId);
+                const res = await fetch('/NhanVien/KiemTraThanhToanSePay', {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'RequestVerificationToken': getAntiForgeryToken() }
+                });
+                const data = await res.json();
+                
+                if (data.thanhCong) {
+                    // Success!
+                    document.getElementById('sepaySuccessOverlay').style.display = 'flex';
+                    document.getElementById('sepayStatusText').textContent = 'Thanh toán thành công!';
+                    document.getElementById('sepayStatusText').style.color = '#10b981';
+                    
+                    setTimeout(() => {
+                        window.open(`/NhanVien/InHoaDon?id=${donHangId}`, '_blank');
+                        closeSepayModal();
+                    }, 2000);
+                    return;
+                }
+            } catch(e) { console.error(e); }
+            
+            // continue polling
+            sepayPollTimer = setTimeout(() => pollSePay(donHangId), 5000);
+        }
+
         // Initialize
-        renderProducts(sanPhams);
+        renderCategoryFilters();
+        renderProducts(getFilteredProducts(sanPhams));
     </script>
 }

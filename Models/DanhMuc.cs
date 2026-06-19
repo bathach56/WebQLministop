@@ -11,4 +11,6 @@ public class DanhMuc
 
     [StringLength(250)]
     public string? MoTa { get; set; }
+
+    public bool KichHoat { get; set; } = true;
 }

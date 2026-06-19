@@ -1,4 +1,5 @@
 @using WebQLministop.Models
+@using Microsoft.AspNetCore.Http
 @{
     ViewData["Title"] = "Trang chủ khách";
     var sanPhamsMoi = ViewBag.SanPhamsMoi as List<SanPham> ?? new List<SanPham>();
@@ -15,14 +16,6 @@
         _ => string.IsNullOrWhiteSpace(ten) ? "Chưa phân loại" : ten
     };
 
-    string HienThiMoTaDanhMuc(DanhMuc danhMuc) => danhMuc.Ten switch
-    {
-        "Do uong" => "Nước ngọt, nước suối, cà phê",
-        "Banh keo" => "Snack, kẹo, bánh",
-        "Thuc pham" => "Mì gói, sữa, đồ ăn nhanh",
-        "Gia dung" => "Vệ sinh, hộp đựng",
-        _ => string.IsNullOrWhiteSpace(danhMuc.MoTa) ? "Sản phẩm tiện lợi MiniStop" : danhMuc.MoTa
-    };
 }
 
 <div class="relative w-full max-w-7xl mx-auto md:mt-4 md:rounded-2xl overflow-hidden shadow-sm">
@@ -51,7 +44,6 @@
                 <a href="/TimKiem?danhMuc=@Uri.EscapeDataString(danhMuc.Ten)" class="group rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-brand-200 hover:shadow-md transition-all text-decoration-none">
                     <div class="text-xs font-bold uppercase tracking-wide text-brand-600 mb-2">MiniStop</div>
                     <div class="font-bold text-slate-900 group-hover:text-brand-600">@HienThiDanhMuc(danhMuc.Ten)</div>
-                    <div class="text-sm text-slate-500 mt-1 line-clamp-2">@HienThiMoTaDanhMuc(danhMuc)</div>
                 </a>
             }
         </div>
@@ -121,18 +113,21 @@
     </div>
 </section>
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 mb-8">
-    <div class="bg-slate-900 rounded-2xl overflow-hidden relative shadow-xl">
-        <div class="absolute inset-0 bg-brand-600/10 mix-blend-overlay"></div>
-        <div class="relative p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div class="text-center md:text-left flex-1">
-                <h2 class="text-2xl md:text-3xl font-black text-white mb-2">Trở thành thành viên MiniStop</h2>
-                <p class="text-slate-300">Đăng ký ngay để nhận ưu đãi độc quyền, tích điểm mỗi lần mua và nhận quà tặng sinh nhật.</p>
-            </div>
-            <div class="flex gap-4 w-full md:w-auto shrink-0">
-                <a href="/DangKy" class="flex-1 md:flex-none text-center bg-brand-500 hover:bg-brand-400 text-white px-6 py-3 rounded-full font-bold transition-colors shadow-lg shadow-brand-500/30 text-decoration-none">Đăng ký ngay</a>
-                <a href="/DangNhap" class="flex-1 md:flex-none text-center bg-white/10 hover:bg-white/20 text-white border border-white/20 px-6 py-3 rounded-full font-bold transition-colors backdrop-blur-md text-decoration-none">Đăng nhập</a>
+@if (Context.Session.GetInt32("KhachHangId") == null)
+{
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 mb-8">
+        <div class="bg-slate-900 rounded-2xl overflow-hidden relative shadow-xl">
+            <div class="absolute inset-0 bg-brand-600/10 mix-blend-overlay"></div>
+            <div class="relative p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div class="text-center md:text-left flex-1">
+                    <h2 class="text-2xl md:text-3xl font-black text-white mb-2">Trở thành thành viên MiniStop</h2>
+                    <p class="text-slate-300">Đăng ký ngay để nhận ưu đãi độc quyền, tích điểm mỗi lần mua và nhận quà tặng sinh nhật.</p>
+                </div>
+                <div class="flex gap-4 w-full md:w-auto shrink-0">
+                    <a href="/DangKy" class="flex-1 md:flex-none text-center bg-brand-500 hover:bg-brand-400 text-white px-6 py-3 rounded-full font-bold transition-colors shadow-lg shadow-brand-500/30 text-decoration-none">Đăng ký ngay</a>
+                    <a href="/DangNhap" class="flex-1 md:flex-none text-center bg-white/10 hover:bg-white/20 text-white border border-white/20 px-6 py-3 rounded-full font-bold transition-colors backdrop-blur-md text-decoration-none">Đăng nhập</a>
+                </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
+}

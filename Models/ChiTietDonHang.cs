@@ -12,6 +12,15 @@ public class ChiTietDonHang
     public int SanPhamId { get; set; }
     public SanPham? SanPham { get; set; }
 
+    [StringLength(50)]
+    public string? MaSanPham { get; set; }
+
+    [StringLength(150)]
+    public string? TenSanPham { get; set; }
+
+    [StringLength(30)]
+    public string? DonViSanPham { get; set; }
+
     public int SoLuong { get; set; }
 
     [Range(0, double.MaxValue)]

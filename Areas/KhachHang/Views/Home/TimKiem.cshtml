@@ -1,7 +1,6 @@
 @using WebQLministop.Models
 @{
     ViewData["Title"] = "Kết quả tìm kiếm";
-    ViewData["HideCategories"] = true;
     var sanPhams = ViewBag.SanPhams as List<SanPham> ?? new List<SanPham>();
     var danhMucs = ViewBag.DanhMucs as List<DanhMuc> ?? new List<DanhMuc>();
     var keyword = ViewData["Keyword"] as string;

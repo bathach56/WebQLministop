@@ -49,18 +49,18 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
 
 var app = builder.Build();
 
-// Ép buộc toàn bộ hệ thống hiểu rằng đang chạy trên HTTPS (Khắc phục triệt để lỗi proxy của tryasp.net)
+
 app.Use((context, next) =>
 {
     context.Request.Scheme = "https";
     return next(context);
 });
 
-// Cấu hình luồng xử lý request của ứng dụng.
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // HSTS mặc định là 30 ngày; có thể điều chỉnh lại khi triển khai môi trường thật.
+ 
     app.UseHsts();
 }
 
@@ -72,6 +72,8 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapControllers();
 
 app.MapAreaControllerRoute(
     name: "quanly-root",
