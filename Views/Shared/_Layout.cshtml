@@ -22,10 +22,19 @@
         }
 
         return !string.IsNullOrWhiteSpace(quyenNhanVienDangNhap) &&
-            quyenNhanVienDangNhap.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Contains(quyen);
+            quyenNhanVienDangNhap.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Contains(quyen, StringComparer.OrdinalIgnoreCase);
     }
-    var coQuyenManHinhNhanVien = CoQuyenNhanVien("BanHang.TaoDon") || CoQuyenNhanVien("BanHang.TraCuuSanPham") || CoQuyenNhanVien("HoaDon.Xem");
-    var coQuyenManHinhQuanLy = CoQuyenNhanVien("SanPham.Tao") || CoQuyenNhanVien("DanhMuc.QuanLy") || CoQuyenNhanVien("DonHang.QuanLy") || CoQuyenNhanVien("KhuyenMai.Tao") || CoQuyenNhanVien("NhanVien.PhanQuyen");
+    var coQuyenSanPham = CoQuyenNhanVien("SanPham.Tao");
+    var coQuyenDanhMuc = CoQuyenNhanVien("DanhMuc.QuanLy");
+    var coQuyenDonHang = CoQuyenNhanVien("DonHang.QuanLy");
+    var coQuyenKhuyenMai = CoQuyenNhanVien("KhuyenMai.Tao");
+    var coQuyenHoaDon = CoQuyenNhanVien("HoaDon.Xem");
+    var coQuyenPhanQuyen = CoQuyenNhanVien("NhanVien.PhanQuyen");
+    var coQuyenBanHang = CoQuyenNhanVien("BanHang.TaoDon");
+    var coQuyenTraCuuSanPham = CoQuyenNhanVien("BanHang.TraCuuSanPham");
+    var coQuyenManHinhNhanVien = coQuyenBanHang || coQuyenTraCuuSanPham || coQuyenHoaDon;
+    var coQuyenManHinhQuanLy = coQuyenSanPham || coQuyenDanhMuc || coQuyenDonHang || coQuyenKhuyenMai || coQuyenPhanQuyen;
     var diemThuongSession = Context.Session.GetInt32("KhachHangDiemThuong");
     var diemThuongDangNhap = diemThuongSession ?? 0;
 
@@ -154,13 +163,31 @@
                     @if (coQuyenManHinhQuanLy)
                     {
                         <a href="/QuanLy#dashboard" class="is-active" data-page-link="dashboard"><span>T</span>Tổng quan</a>
-                        <a href="/QuanLy#products" data-page-link="products"><span>S</span>Sản phẩm</a>
-                        <a href="/QuanLy#categories" data-page-link="categories"><span>D</span>Danh mục</a>
-                        <a href="/QuanLy#orders" data-page-link="orders"><span>Đ</span>Đơn hàng</a>
-                        <a href="/QuanLy#customers" data-page-link="customers"><span>K</span>Khách hàng</a>
-                        <a href="/QuanLy#staff" data-page-link="staff"><span>N</span>Nhân viên</a>
-                        <a href="/QuanLy#suppliers" data-page-link="suppliers"><span>C</span>Nhà cung cấp</a>
-                        <a href="/QuanLy#promotions" data-page-link="promotions"><span>M</span>Khuyến mãi</a>
+                        @if (coQuyenSanPham)
+                        {
+                            <a href="/QuanLy#products" data-page-link="products"><span>S</span>Sản phẩm</a>
+                        }
+                        @if (coQuyenDanhMuc)
+                        {
+                            <a href="/QuanLy#categories" data-page-link="categories"><span>D</span>Danh mục</a>
+                        }
+                        @if (coQuyenDonHang)
+                        {
+                            <a href="/QuanLy#orders" data-page-link="orders"><span>Đ</span>Đơn hàng</a>
+                            <a href="/QuanLy#customers" data-page-link="customers"><span>K</span>Khách hàng</a>
+                        }
+                        @if (coQuyenPhanQuyen)
+                        {
+                            <a href="/QuanLy#staff" data-page-link="staff"><span>N</span>Nhân viên</a>
+                        }
+                        @if (coQuyenSanPham)
+                        {
+                            <a href="/QuanLy#suppliers" data-page-link="suppliers"><span>C</span>Nhà cung cấp</a>
+                        }
+                        @if (coQuyenKhuyenMai)
+                        {
+                            <a href="/QuanLy#promotions" data-page-link="promotions"><span>M</span>Khuyến mãi</a>
+                        }
                     }
                     @if (coQuyenManHinhNhanVien)
                     {

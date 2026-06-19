@@ -15,14 +15,14 @@ public class QuanLyController : Controller
 {
     private static readonly IReadOnlyDictionary<string, string> DanhSachQuyen = new Dictionary<string, string>
     {
-        ["SanPham.Tao"] = "Tao/sua san pham",
-        ["DanhMuc.QuanLy"] = "Quan ly danh muc",
-        ["DonHang.QuanLy"] = "Quan ly don hang",
-        ["KhuyenMai.Tao"] = "Tao/bat tat voucher",
-        ["HoaDon.Xem"] = "Xem/in hoa don",
-        ["NhanVien.PhanQuyen"] = "Phan quyen nhan vien",
-        ["BanHang.TaoDon"] = "Tao hoa don tai quay",
-        ["BanHang.TraCuuSanPham"] = "Tra cuu san pham tai quay"
+        ["SanPham.Tao"] = "Tạo/sửa sản phẩm",
+        ["DanhMuc.QuanLy"] = "Quản lý danh mục",
+        ["DonHang.QuanLy"] = "Quản lý đơn hàng",
+        ["KhuyenMai.Tao"] = "Tạo/tắt mã khuyến mãi",
+        ["HoaDon.Xem"] = "Xem/in hóa đơn",
+        ["NhanVien.PhanQuyen"] = "Phân quyền nhân viên",
+        ["BanHang.TaoDon"] = "Tạo hóa đơn tại quầy",
+        ["BanHang.TraCuuSanPham"] = "Tra cứu sản phẩm tại quầy"
     };
 
     private readonly ApplicationDbContext _context;
